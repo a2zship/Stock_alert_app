@@ -10,7 +10,7 @@ export type Status = (typeof STATUSES)[number];
 export type Role = "PHU_HUYNH" | "NGUOI_DON" | "GIAO_VIEN" | "HE_THONG";
 
 export type Action =
-  | "NGUOI_DON_NHAN" | "NGUOI_DON_TU_CHOI"
+  | "NGUOI_DON_NHAN" | "NGUOI_DON_TU_CHOI" | "NGUOI_DON_BAO_NGHI"
   | "GV_DUYET" | "GV_TU_CHOI"
   | "PH_HUY"
   | "KHOA_SAI_PIN"
@@ -23,6 +23,8 @@ type Rule = { from: Status[]; to: Status; role: Role };
 const RULES: Record<Action, Rule> = {
   NGUOI_DON_NHAN: { from: ["CHO_NGUOI_DON"], to: "CHO_GIAO_VIEN", role: "NGUOI_DON" },
   NGUOI_DON_TU_CHOI: { from: ["CHO_NGUOI_DON"], to: "NGUOI_DON_TU_CHOI", role: "NGUOI_DON" },
+  // đón theo tháng: buổi đã duyệt sẵn, người đón báo nghỉ buổi này
+  NGUOI_DON_BAO_NGHI: { from: ["DA_DUYET"], to: "NGUOI_DON_TU_CHOI", role: "NGUOI_DON" },
   GV_DUYET: { from: ["CHO_GIAO_VIEN"], to: "DA_DUYET", role: "GIAO_VIEN" },
   GV_TU_CHOI: { from: ["CHO_GIAO_VIEN"], to: "GV_TU_CHOI", role: "GIAO_VIEN" },
   PH_HUY: { from: ["CHO_NGUOI_DON", "CHO_GIAO_VIEN", "DA_DUYET", "BI_KHOA"], to: "DA_HUY", role: "PHU_HUYNH" },

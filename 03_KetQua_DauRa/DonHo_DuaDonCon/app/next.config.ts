@@ -9,6 +9,8 @@ const publicHost = (() => {
 })();
 
 const nextConfig: NextConfig = {
+  // Chỉ bật khi đóng gói Docker (Dockerfile đặt BUILD_STANDALONE=1); chạy local vẫn dùng `next start` như cũ.
+  output: process.env.BUILD_STANDALONE ? "standalone" : undefined,
   experimental: {
     serverActions: {
       bodySizeLimit: "6mb", // ảnh chân dung đã thu nhỏ ở trình duyệt (~200 KB), chừa dư

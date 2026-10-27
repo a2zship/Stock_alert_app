@@ -93,7 +93,8 @@ describe("nhóm lớp", () => {
     expect(await db.message.count({ where: { toPhone: phoneOf.me, body: { contains: "cần người đón giúp" } } })).toBe(1);
     expect(await db.message.count({ where: { toPhone: phoneOf.meBinh, body: { contains: "cần người đón giúp" } } })).toBe(0);
 
-    await expect(C.offerHelp(await uid(phoneOf.meBinh), post.id)).rejects.toThrow(/không ở trong nhóm/);
+    // phụ huynh lớp khác cùng trường: phải chờ lời nhờ lên vòng TRƯỜNG
+    await expect(C.offerHelp(await uid(phoneOf.meBinh), post.id)).rejects.toThrow(/ưu tiên phụ huynh gần bé/);
     await expect(C.offerHelp(await uid(phoneOf.coLan), post.id)).rejects.toThrow(/Chỉ phụ huynh/);
     await expect(C.offerHelp(bao, post.id)).rejects.toThrow(/phụ huynh của bé/);
     await C.offerHelp(me, post.id, "Mình tiện đường");

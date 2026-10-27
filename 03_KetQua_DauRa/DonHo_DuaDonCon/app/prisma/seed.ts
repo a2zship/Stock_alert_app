@@ -19,10 +19,17 @@ export async function seed(prisma = db) {
     name: "Trường Mầm non Hoa Sen (thử nghiệm)", wardId: ward.id,
     address: "Phường Ninh Kiều, TP Cần Thơ (địa chỉ và toạ độ mẫu)", lat: 10.0341, lng: 105.7852,
   } });
+  // trường thứ hai (phường khác) để thử chọn khu vực khi đăng ký
+  const caiKhe = await prisma.ward.findFirstOrThrow({ where: { provinceId: cto.id, name: "Phường Cái Khế" } });
+  const school2 = await prisma.school.create({ data: { name: "Trường Mầm non Sen Hồng (thử nghiệm)", wardId: caiKhe.id, address: "Phường Cái Khế, TP Cần Thơ (địa chỉ mẫu)" } });
+  await prisma.class.create({ data: { schoolId: school2.id, name: "Lớp Mầm 1", pickupStart: "16:30", pickupEnd: "17:30" } });
+
   const la1 = await prisma.class.create({ data: { schoolId: school.id, name: "Lớp Lá 1", pickupStart: "16:30", pickupEnd: "17:30" } });
   const choi2 = await prisma.class.create({ data: { schoolId: school.id, name: "Lớp Chồi 2", pickupStart: "16:15", pickupEnd: "17:15" } });
 
-  const user = (phone: string, name: string) => prisma.user.create({ data: { phone, name } });
+  // khu vực thực tế của người dùng mẫu: cùng phường với trường
+  const area = { provinceId: cto.id, wardId: ward.id, schoolId: school.id };
+  const user = (phone: string, name: string) => prisma.user.create({ data: { phone, name, ...area } });
   const coLan = await user("0901000010", "Cô Nguyễn Thị Lan");
   const coMai = await user("0901000011", "Cô Trần Thị Mai");
   const anhTuan = await user("0901000001", "Anh Lê Minh Tuấn");
@@ -31,6 +38,8 @@ export async function seed(prisma = db) {
   const anhBao = await user("0901000004", "Anh Trần Quốc Bảo");
   const baNgoai = await user("0901000020", "Bà Phạm Thị Sáu");
   const hieuTruong = await user("0901000030", "Cô Đặng Thu Hà (Hiệu trưởng)");
+  // quản trị nền tảng Đón Hộ (số nằm trong ADMIN_PHONES) — chuyển phần chia sẻ cho trường/cô
+  await user("0908000000", "Quản trị Đón Hộ");
 
   await prisma.teacherAssignment.createMany({ data: [{ userId: coLan.id, classId: la1.id }, { userId: coMai.id, classId: choi2.id }] });
   await prisma.schoolAdmin.create({ data: { userId: hieuTruong.id, schoolId: school.id } });

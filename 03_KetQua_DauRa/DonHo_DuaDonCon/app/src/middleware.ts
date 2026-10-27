@@ -1,8 +1,8 @@
-// Mọi trang và server action đều cần đăng nhập, trừ trang đăng nhập, hộp tin thử nghiệm và tài nguyên tĩnh.
+// Mọi trang và server action đều cần đăng nhập, trừ trang đăng nhập, đăng ký (+ danh mục khu vực), hộp tin thử nghiệm và tài nguyên tĩnh.
 import { NextResponse, type NextRequest } from "next/server";
 import { readSession, SESSION_COOKIE } from "@/lib/session";
 
-const PUBLIC = [/^\/dang-nhap(\/|$)/, /^\/thu-nghiem(\/|$)/, /^\/_next\//, /^\/manifest\.webmanifest$/, /^\/icon\.svg$/, /^\/favicon\.ico$/];
+const PUBLIC = [/^\/dang-nhap(\/|$)/, /^\/dang-ky(\/|$)/, /^\/api\/khu-vuc$/, /^\/thu-nghiem(\/|$)/, /^\/_next\//, /^\/manifest\.webmanifest$/, /^\/icon\.svg$/, /^\/favicon\.ico$/];
 
 export async function middleware(req: NextRequest) {
   const { pathname, search } = req.nextUrl;

@@ -12,8 +12,10 @@ export default async function GatePage({ searchParams }: { searchParams: Promise
   const me = await currentUser();
   if (!me?.isTeacher) redirect("/");
   const { ma } = await searchParams;
-  const { today } = await teacherToday(me.id);
+  const { today, monthly } = await teacherToday(me.id);
   const ready = today.filter((r) => r.status === "DA_DUYET");
+  // buổi theo hợp đồng tháng: nhóm riêng nhưng kiểm mã, ảnh, CCCD y như đón lẻ
+  const readyMonthly = monthly.filter((r) => r.status === "DA_DUYET");
 
   return (
     <>
@@ -32,6 +34,13 @@ export default async function GatePage({ searchParams }: { searchParams: Promise
         <h2>Đang chờ đón ({ready.length})</h2>
         {ready.length === 0 ? <Empty icon="checkCircle">Không có bé nào đang chờ người đón hộ.</Empty> : <RequestList rows={ready} show="student" />}
       </div>
+      {readyMonthly.length > 0 && (
+        <div className="card">
+          <h2>Đón theo tháng ({readyMonthly.length})</h2>
+          <p className="small muted">Người đón cố định cô đã duyệt cho cả tháng. Vẫn quét mã hoặc nhập PIN, đối chiếu ảnh và CCCD.</p>
+          <RequestList rows={readyMonthly} show="student" />
+        </div>
+      )}
       <Note>Quét QR: mở ứng dụng Camera của điện thoại, hướng vào mã trên máy người đón, chạm vào đường link hiện ra. Không quét được thì chọn bé ở trên và nhập PIN.</Note>
     </>
   );

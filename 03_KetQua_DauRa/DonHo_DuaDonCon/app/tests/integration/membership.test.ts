@@ -2,6 +2,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { addDays, vnToday } from "@/domain/time";
 import { db } from "@/server/db";
+import * as K from "@/server/asks";
 import * as C from "@/server/chat";
 import * as E from "@/server/earn";
 import * as M from "@/server/membership";
@@ -60,6 +61,8 @@ describe("thành viên ưu đãi", () => {
     const date = addDays(vnToday(), 1);
     await C.postPickupAsk(bo, { studentId: an.id, date, fee: "50000" });
     await C.postPickupAsk(bao, { studentId: ngoc.id, date, fee: "50000" });
+    // lên vòng TRƯỜNG mới hiện trên bảng việc cả trường
+    for (const p of await db.chatPost.findMany({ where: { kind: "NHO_DON" } })) await K.widenAsk(p.authorId, p.id);
     await M.buyMembership(bao, "KIM_CUONG", 1);
 
     const board = await E.paidBoard(nga);

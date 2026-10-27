@@ -23,6 +23,7 @@ model Province {
   kind       ProvinceKind
   formedFrom String       @default("") // các tỉnh cũ hợp thành (để người dùng dễ nhận ra)
   wards      Ward[]
+  residents  User[]
 }
 
 model Ward {
@@ -30,7 +31,9 @@ model Ward {
   provinceId Int
   province   Province @relation(fields: [provinceId], references: [id])
   name       String
+  verified   Boolean  @default(true) // false = phụ huynh tự gõ khi đăng ký, chờ quản trị đối chiếu
   schools    School[]
+  residents  User[]
 
   @@unique([provinceId, name])
 }
@@ -47,6 +50,15 @@ model School {
   classes    Class[]
   admins     SchoolAdmin[]
   helpers    HelperProfile[]
+  residents  User[]
+
+  // Chia sẻ doanh thu: tài khoản nhận của trường; trường tắt phần của cô thì phần đó gộp về trường
+  teacherShare Boolean      @default(true)
+  payBin       String?
+  payAccount   String?
+  payName      String?
+  shares       ShareEntry[]
+  payouts      Payout[]
 }
 
 model Class {
@@ -59,6 +71,7 @@ model Class {
   students    Student[]
   teachers    TeacherAssignment[]
   posts       ChatPost[]
+  claims      GuardianClaim[]
 }
 
 // ── Người dùng & vai trò ──
@@ -69,17 +82,41 @@ model User {
   name      String
   createdAt DateTime @default(now())
 
-  guardianOf  Guardian[]
-  teaches     TeacherAssignment[]
-  adminOf     SchoolAdmin[]
-  requested   PickupRequest[]     @relation("requester")
-  delegated   PickupRequest[]     @relation("delegate")
-  chatPosts   ChatPost[]
-  chatOffers  ChatOffer[]
-  places      SavedPlace[]
-  helper      HelperProfile?
-  settlements Settlement[]
-  memberships Membership[]
+  // Khu vực thực tế (chọn khi đăng ký): app hiển thị theo tỉnh → phường/xã → trường này
+  provinceId    Int?
+  province      Province? @relation(fields: [provinceId], references: [id])
+  wardId        Int?
+  ward          Ward?     @relation(fields: [wardId], references: [id])
+  schoolId      String?
+  school        School?   @relation(fields: [schoolId], references: [id])
+  pendingSchool String? // trường chưa có trong hệ thống — phụ huynh ghi tên để đề xuất
+
+  guardianOf    Guardian[]
+  claims        GuardianClaim[]
+  teaches       TeacherAssignment[]
+  adminOf       SchoolAdmin[]
+  requested     PickupRequest[]     @relation("requester")
+  delegated     PickupRequest[]     @relation("delegate")
+  chatPosts     ChatPost[]
+  chatOffers    ChatOffer[]
+  places        SavedPlace[]
+  helper        HelperProfile?
+  settlements   Settlement[]
+  memberships   Membership[]
+  monthlyAsked  MonthlyContract[]   @relation("monthlyRequester")
+  monthlyHelped MonthlyContract[]   @relation("monthlyHelper")
+  monthlyOffers MonthlyOffer[]
+
+  // Giới thiệu bạn bè: mã của mình, người đã giới thiệu mình (tính thưởng 12 tháng từ referredAt)
+  refCode      String?        @unique
+  referredById String?
+  referredBy   User?          @relation("referrals", fields: [referredById], references: [id])
+  referrals    User[]         @relation("referrals")
+  referredAt   DateTime?
+  shares       ShareEntry[]   @relation("shareBeneficiary")
+  creditUses   CreditUse[]
+  payAccount   PayoutAccount?
+  payouts      Payout[]
 }
 
 model Guardian {
@@ -90,6 +127,32 @@ model Guardian {
   relation  String // Bố, Mẹ, Người giám hộ
 
   @@id([userId, studentId])
+}
+
+// Phụ huynh tự đăng ký xin nhận là phụ huynh của bé: cô lớp gọi xác minh rồi mới gắn với hồ sơ bé.
+enum ClaimStatus {
+  CHO_DUYET
+  DA_DUYET
+  TU_CHOI
+}
+
+model GuardianClaim {
+  id           String      @id @default(cuid())
+  userId       String
+  user         User        @relation(fields: [userId], references: [id])
+  classId      String
+  class        Class       @relation(fields: [classId], references: [id])
+  studentName  String
+  relation     String
+  status       ClaimStatus @default(CHO_DUYET)
+  studentId    String? // bé được gắn khi duyệt (có sẵn trong lớp hoặc cô thêm mới)
+  decidedById  String?
+  decidedAt    DateTime?
+  calledParent Boolean     @default(false)
+  note         String      @default("")
+  createdAt    DateTime    @default(now())
+
+  @@index([classId, status])
 }
 
 model TeacherAssignment {
@@ -111,9 +174,9 @@ model SchoolAdmin {
 }
 
 model Student {
-  id        String          @id @default(cuid())
+  id        String            @id @default(cuid())
   classId   String
-  class     Class           @relation(fields: [classId], references: [id])
+  class     Class             @relation(fields: [classId], references: [id])
   name      String
   photoId   String?
   guardians Guardian[]
@@ -121,6 +184,7 @@ model Student {
   blocked   BlockedPerson[]
   requests  PickupRequest[]
   posts     ChatPost[]
+  monthly   MonthlyContract[]
 }
 
 // ── Người tin cậy & người không được đón ──
@@ -244,6 +308,10 @@ model PickupRequest {
   settlementId  String?
   settlement    Settlement? @relation(fields: [settlementId], references: [id])
 
+  // buổi đón sinh ra từ hợp đồng tháng — đã duyệt sẵn, không có thù lao riêng (đã trả trọn gói)
+  contractId String?
+  contract   MonthlyContract? @relation(fields: [contractId], references: [id])
+
   createdAt DateTime       @default(now())
   events    RequestEvent[]
 
@@ -339,6 +407,12 @@ enum PostStatus {
   DA_DONG // người đăng tự đóng
 }
 
+enum AskScope {
+  LOP
+  TRUONG
+  KHU_VUC
+}
+
 model ChatPost {
   id          String      @id @default(cuid())
   classId     String
@@ -358,11 +432,16 @@ model ChatPost {
   dropWard    String?
   dropLat     Float?
   dropLng     Float?
-  fee         Int? // > 0: lời nhờ có thù lao tối thiểu — phụ huynh cả trường (người đón có phí đã duyệt) thấy và nhận được
+  fee         Int? // > 0: lời nhờ có thù lao tối thiểu — người đón có phí đã duyệt của trường nhận được (từ vòng TRƯỜNG)
+  // vòng phát lời nhờ (domain/ask.ts): LOP → TRUONG → KHU_VUC, chỉ lên vòng sau khi chưa ai nhận
+  scope       AskScope    @default(LOP)
+  scopeAt     DateTime    @default(now()) // lúc vào vòng hiện tại
+  areaWardId  Int? // phường/xã nơi người nhờ sống — phạm vi vòng KHU_VUC
   createdAt   DateTime    @default(now())
   offers      ChatOffer[]
 
   @@index([classId, createdAt])
+  @@index([kind, status, scope])
 }
 
 model ChatOffer {
@@ -420,12 +499,14 @@ model HelperProfile {
 
 /// Một lần người đón nộp phí nền tảng (gộp nhiều lượt đón).
 model Settlement {
-  id        String          @id @default(cuid())
-  userId    String
-  user      User            @relation(fields: [userId], references: [id])
-  amount    Int
-  createdAt DateTime        @default(now())
-  requests  PickupRequest[]
+  id               String            @id @default(cuid())
+  userId           String
+  user             User              @relation(fields: [userId], references: [id])
+  amount           Int
+  creditUsed       Int               @default(0) // trừ bằng tín dụng giới thiệu; tiền mặt = amount − creditUsed
+  createdAt        DateTime          @default(now())
+  requests         PickupRequest[]
+  monthlyContracts MonthlyContract[]
 }
 
 enum MemberTier {
@@ -442,16 +523,179 @@ enum MembershipStatus {
 
 /// Gói thành viên ưu đãi đã mua (Thường = không có gói). Hạng đang có = gói còn hạn cao nhất.
 model Membership {
-  id        String           @id @default(cuid())
-  userId    String
-  user      User             @relation(fields: [userId], references: [id])
-  tier      MemberTier
-  months    Int
-  amount    Int
-  startsAt  DateTime
-  endsAt    DateTime
-  status    MembershipStatus @default(CHO_DOI_SOAT)
-  createdAt DateTime         @default(now())
+  id         String           @id @default(cuid())
+  userId     String
+  user       User             @relation(fields: [userId], references: [id])
+  tier       MemberTier
+  months     Int
+  amount     Int
+  creditUsed Int              @default(0) // trừ bằng tín dụng giới thiệu
+  startsAt   DateTime
+  endsAt     DateTime
+  status     MembershipStatus @default(CHO_DOI_SOAT)
+  createdAt  DateTime         @default(now())
 
   @@index([userId, endsAt])
+}
+
+// ── Đón theo tháng: một người đón cố định cho các buổi trong tháng, trả TRỌN GÓI ĐẦU THÁNG thẳng cho người đón ──
+
+enum MonthlyStatus {
+  TIM_NGUOI // hợp đồng mở trên bảng việc của trường (24 giờ đầu chỉ Kim cương)
+  CHO_NGUOI_DON // phụ huynh chỉ định người đón, chờ người đó nhận lời
+  CHO_GIAO_VIEN // đã có người đón, chờ cô duyệt một lần
+  DA_DUYET // đang chạy: mỗi buổi tự sinh yêu cầu đã duyệt (mã QR/PIN mới)
+  TU_CHOI // người đón hoặc cô từ chối
+  DA_HUY // phụ huynh huỷ trước khi duyệt
+  KET_THUC // hết tháng hoặc một bên dừng sớm
+}
+
+model MonthlyContract {
+  id            String        @id @default(cuid())
+  studentId     String
+  student       Student       @relation(fields: [studentId], references: [id])
+  requesterId   String
+  requester     User          @relation("monthlyRequester", fields: [requesterId], references: [id])
+  helperId      String?
+  helper        User?         @relation("monthlyHelper", fields: [helperId], references: [id])
+  designated    Boolean // phụ huynh chỉ định người đón
+  month         String // YYYY-MM
+  weekdays      Int[] // 1 = Thứ Hai … 6 = Thứ Bảy
+  firstDay      String // YYYY-MM-DD: buổi sớm nhất (tháng hiện tại thì từ ngày mai)
+  fee           Int // trọn gói cả tháng
+  note          String        @default("")
+  status        MonthlyStatus
+  priorityUntil DateTime? // hợp đồng mở: trước mốc này chỉ người đón Kim cương nhận được
+
+  // điểm trả cố định cả tháng — xoá khi kết thúc
+  dropLabel   String?
+  dropAddress String?
+  dropWard    String?
+  dropLat     Float?
+  dropLng     Float?
+
+  decidedById         String?
+  decidedAt           DateTime?
+  decisionNote        String?
+  teacherCalledParent Boolean   @default(false)
+
+  skipDates String[] // buổi phụ huynh tự huỷ — không hoàn tiền
+  missDates String[] // buổi người đón báo nghỉ — hoàn tiền
+
+  paidAt       DateTime?
+  paidAmount   Int?
+  rate         Float? // phí nền tảng chốt lúc trả (theo hạng hai bên)
+  commission   Int?
+  receivedAt   DateTime?
+  settlementId String?
+  settlement   Settlement? @relation(fields: [settlementId], references: [id])
+
+  endedAt    DateTime?
+  endedBy    String? // PHU_HUYNH | NGUOI_DON | HE_THONG
+  endDate    String? // buổi cuối cùng còn đón (YYYY-MM-DD)
+  endReason  String?
+  refundDue  Int? // người đón phải hoàn lại cho phụ huynh
+  refundedAt DateTime?
+
+  createdAt DateTime        @default(now())
+  offers    MonthlyOffer[]
+  requests  PickupRequest[]
+
+  @@index([status, month])
+  @@index([helperId, status])
+}
+
+model MonthlyOffer {
+  id         String          @id @default(cuid())
+  contractId String
+  contract   MonthlyContract @relation(fields: [contractId], references: [id])
+  userId     String
+  user       User            @relation(fields: [userId], references: [id])
+  createdAt  DateTime        @default(now())
+
+  @@unique([contractId, userId])
+}
+
+// ── Giới thiệu bạn bè & chia sẻ doanh thu với nhà trường, giáo viên (domain/share.ts) ──
+// Chỉ chia trên TIỀN MẶT nền tảng thực thu (phí nền tảng người đón nộp, phí thành viên) — phần trả bằng tín dụng không chia.
+
+enum ShareKind {
+  GIOI_THIEU // người giới thiệu — tín dụng trừ phí, không rút tiền mặt
+  TRUONG
+  GIAO_VIEN
+}
+
+enum ShareSource {
+  THANH_VIEN
+  PHI_NEN_TANG
+}
+
+enum ShareStatus {
+  TAM_TINH // chờ hết tháng + đối soát
+  DA_TRA // nền tảng đã chuyển (trường/cô)
+  HUY // nguồn doanh thu bị huỷ khi đối soát
+}
+
+model ShareEntry {
+  id         String      @id @default(cuid())
+  kind       ShareKind
+  userId     String? // người giới thiệu / giáo viên
+  user       User?       @relation("shareBeneficiary", fields: [userId], references: [id])
+  schoolId   String? // trường (phần TRUONG) hoặc trường của lớp (phần GIAO_VIEN)
+  school     School?     @relation(fields: [schoolId], references: [id])
+  classId    String?
+  source     ShareSource
+  sourceId   String // id gói thành viên / lần nộp phí
+  fromUserId String // người phát sinh doanh thu
+  base       Int // tiền mặt nền tảng thu được tính cho dòng này
+  rate       Float
+  amount     Int
+  month      String // YYYY-MM (giờ Việt Nam) lúc phát sinh
+  status     ShareStatus @default(TAM_TINH)
+  payoutId   String?
+  payout     Payout?     @relation(fields: [payoutId], references: [id])
+  createdAt  DateTime    @default(now())
+
+  @@index([userId, kind, status])
+  @@index([schoolId, kind, month])
+  @@index([sourceId])
+}
+
+/// Một lần nền tảng chuyển tiền chia sẻ cho trường hoặc một giáo viên (gộp theo tháng).
+model Payout {
+  id       String       @id @default(cuid())
+  kind     ShareKind
+  userId   String?
+  user     User?        @relation(fields: [userId], references: [id])
+  schoolId String?
+  school   School?      @relation(fields: [schoolId], references: [id])
+  month    String
+  amount   Int
+  bank     String // ảnh chụp tài khoản nhận lúc chuyển
+  paidById String
+  paidAt   DateTime     @default(now())
+  entries  ShareEntry[]
+}
+
+/// Tín dụng giới thiệu đã dùng để trừ phí thành viên / phí nền tảng.
+model CreditUse {
+  id        String      @id @default(cuid())
+  userId    String
+  user      User        @relation(fields: [userId], references: [id])
+  amount    Int
+  purpose   ShareSource
+  refId     String
+  createdAt DateTime    @default(now())
+
+  @@index([userId])
+}
+
+/// Tài khoản ngân hàng giáo viên nhận phần chia sẻ (đứng tên chính mình).
+model PayoutAccount {
+  userId      String   @id
+  user        User     @relation(fields: [userId], references: [id])
+  bankBin     String
+  bankAccount String
+  accountName String
+  updatedAt   DateTime @updatedAt
 }

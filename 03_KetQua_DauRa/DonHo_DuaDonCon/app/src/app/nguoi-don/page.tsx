@@ -11,7 +11,7 @@ import { rewardPage } from "@/server/rewards";
 export default async function DelegateHome() {
   const me = await currentUser();
   if (!me) redirect("/dang-nhap");
-  const [rows, { reward, thanks }] = await Promise.all([delegateInbox(me.id), rewardPage(me.id)]);
+  const [{ rows, monthly }, { reward, thanks }] = await Promise.all([delegateInbox(me.id), rewardPage(me.id)]);
   const open = rows.filter((r) => ["CHO_NGUOI_DON", "CHO_GIAO_VIEN", "DA_DUYET", "DA_GIAO"].includes(r.status));
   const past = rows.filter((r) => !open.includes(r));
   return (
@@ -41,6 +41,13 @@ export default async function DelegateHome() {
               : <RequestList rows={open} show="student" />}
             <p className="small muted mt-10 mb-0">Các bước: nhận lời → cô giáo duyệt → bạn nhận mã đón → tới cổng đưa mã + CCCD bản gốc.</p>
           </div>
+          {monthly.length > 0 && (
+            <div className="card">
+              <div className="card-head"><h2>Buổi đón theo tháng <span className="count">{monthly.length}</span></h2><Link href="/thang" className="btn btn-plain btn-sm">Hợp đồng</Link></div>
+              <RequestList rows={monthly} show="student" />
+              <p className="small muted mt-10 mb-0">Buổi theo hợp đồng có thù lao trọn gói, không tính điểm tương trợ. Báo nghỉ hoặc dừng hợp đồng ở trang hợp đồng.</p>
+            </div>
+          )}
           {thanks.length > 0 && (
             <div className="card">
               <h2>Lời cảm ơn gửi bạn</h2>

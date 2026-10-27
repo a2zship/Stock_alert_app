@@ -20,8 +20,9 @@ const greetName = (full: string) => {
 export default async function ParentHome() {
   const me = await currentUser();
   if (!me?.isParent) redirect("/");
-  const { students, active, recent } = await parentHome(me.id);
-  const needConfirm = active.filter((r) => r.status === "DA_GIAO");
+  const { students, active, recent, monthly } = await parentHome(me.id);
+  // xác nhận "con đã về" là việc an toàn → gồm cả buổi theo tháng
+  const needConfirm = [...active, ...monthly].filter((r) => r.status === "DA_GIAO");
   const tracking = active.filter((r) => r.status === "DA_DUYET");
   const classIds = [...new Set(students.map((s) => s.classId))];
   const [openAsks, reward] = await Promise.all([
@@ -41,6 +42,13 @@ export default async function ParentHome() {
         <Link href="/nhom" className="btn btn-lg btn-outline"><Icon name="message" />Nhờ trong nhóm lớp</Link>
       </Hero>
 
+      {me.area && (
+        <p className="area-path small mb-10">
+          <Icon name="mapPin" size={16} />
+          <span>Khu vực: <strong>{me.area.ward}</strong>, {me.area.province}{me.area.school ? ` · ${me.area.school}` : ""}</span>
+          <Link href="/khu-vuc" className="btn btn-plain btn-sm">{me.area.own ? "Đổi" : "Chọn nơi bạn sống"}</Link>
+        </p>
+      )}
       {needConfirm.length > 0 && (
         <div className="card alert-banner">
           <h2>Bé đã được giao — chờ bạn xác nhận</h2>
@@ -81,6 +89,11 @@ export default async function ParentHome() {
           <strong>Kiếm thêm</strong>
           <span className="small">Đón con giúp phụ huynh cùng trường, nhận thù lao</span>
         </Link>
+        <Link href="/thang" className="quick">
+          <span className="ic"><Icon name="calendar" /></span>
+          <strong>Đón theo tháng</strong>
+          <span className="small">Một người đón cố định, cô duyệt một lần</span>
+        </Link>
         <Link href="/thanh-vien" className="quick">
           <span className="ic"><Icon name="star" /></span>
           <strong>Thành viên ưu đãi</strong>
@@ -115,6 +128,12 @@ export default async function ParentHome() {
             <h2>Đang nhờ đón</h2>
             {active.length === 0 ? <Empty icon="hand">Chưa có yêu cầu nào đang chạy. Khi bận đột xuất, bấm &quot;Nhờ đón hộ&quot;.</Empty> : <RequestList rows={active} show="student" />}
           </div>
+          {monthly.length > 0 && (
+            <div className="card">
+              <div className="card-head"><h2>Đón theo tháng hôm nay <span className="count">{monthly.length}</span></h2><Link href="/thang" className="btn btn-plain btn-sm">Quản lý hợp đồng</Link></div>
+              <RequestList rows={monthly} show="student" />
+            </div>
+          )}
           <div className="card">
             <h2>Gần đây</h2>
             {recent.length === 0 ? <Empty icon="clock">Chưa có lịch sử.</Empty> : <RequestList rows={recent} show="student" />}

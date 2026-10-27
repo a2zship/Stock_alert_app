@@ -1,0 +1,6 @@
+# Caddy tự xin và gia hạn chứng chỉ HTTPS cho {$DOMAIN}. Tên miền phải trỏ về IP máy chủ trước khi chạy.
+{$DOMAIN} {
+	encode zstd gzip
+	header Strict-Transport-Security "max-age=31536000"
+	reverse_proxy web:3000
+}

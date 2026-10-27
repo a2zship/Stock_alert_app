@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { hashCode, newPin, newToken, sameHash } from "@/domain/codes";
 import { canSeeDropAddress, parseDrop, showDrop } from "@/domain/drop";
+import { firstDay, monthOptions, parseMonthFee, parseWeekdays, refundableDays, refundOf, scheduleDays, weekdayOf } from "@/domain/monthly";
 import { maskPhone, normalizePhone } from "@/domain/phone";
 import { parseDataUrl, sniffImage } from "@/domain/photo";
 import { codeUsableAt, STATUSES, STATUS_LABEL, transition, TransitionError } from "@/domain/state";
@@ -224,5 +225,109 @@ describe("thành viên ưu đãi", async () => {
     const vang = { tier: "VANG", endsAt: addMonths(now, 12) };
     expect(startOfNew([vang], "BAC", now)).toEqual(vang.endsAt);
     expect(startOfNew([], "KIM_CUONG", now)).toEqual(now);
+  });
+});
+
+describe("đón theo tháng", () => {
+  it("lịch buổi: đúng thứ trong tuần, tháng này chỉ từ ngày mai", () => {
+    expect(weekdayOf("2026-11-02")).toBe(1); // Thứ Hai
+    const nov = scheduleDays("2026-11", [1, 3, 5], "2026-11-01");
+    expect(nov).toHaveLength(13);
+    expect(nov[0]).toBe("2026-11-02");
+    expect(nov.every((d) => [1, 3, 5].includes(weekdayOf(d)))).toBe(true);
+    const now = vnDateTime("2026-10-27", "10:00");
+    expect(monthOptions(now)).toEqual(["2026-10", "2026-11"]);
+    expect(monthOptions(vnDateTime("2026-12-05", "10:00"))).toEqual(["2026-12", "2027-01"]);
+    expect(firstDay("2026-10", now)).toBe("2026-10-28");
+    expect(firstDay("2026-11", now)).toBe("2026-11-01");
+    expect(parseWeekdays(["1", "1", "7", "3"])).toEqual([1, 3]);
+    expect(parseWeekdays([])).toHaveProperty("error");
+  });
+
+  it("trọn gói tối thiểu 20.000đ mỗi buổi; hoàn tiền theo tỉ lệ buổi không đón", () => {
+    expect(parseMonthFee("400.000", 20)).toBe(400_000);
+    expect(parseMonthFee("399000", 20)).toHaveProperty("error");
+    expect(parseMonthFee("400500", 20)).toHaveProperty("error");
+    expect(parseMonthFee("", 20)).toHaveProperty("error");
+    expect(refundOf(600_000, 20, 5)).toBe(150_000);
+    expect(refundOf(500_000, 3, 1)).toBe(167_000); // làm tròn nghìn
+    expect(refundOf(600_000, 20, 99)).toBe(600_000);
+    const days = ["d1", "d2", "d3", "d4", "d5", "d6"];
+    // người đón dừng sau d2: hoàn d3..d6 + buổi đã nghỉ d1
+    expect(refundableDays({ days, missed: ["d1"], endDate: "d2", by: "NGUOI_DON" })).toBe(5);
+    // phụ huynh dừng sau d2: 4 buổi còn lại trừ 2 buổi báo trước
+    expect(refundableDays({ days, missed: [], endDate: "d2", by: "PHU_HUYNH" })).toBe(2);
+    expect(refundableDays({ days, missed: [], endDate: "d5", by: "PHU_HUYNH" })).toBe(0);
+    expect(refundableDays({ days, missed: ["d4"], endDate: null, by: "HE_THONG" })).toBe(1);
+  });
+});
+
+describe("khu vực đăng ký", () => {
+  it("tỉnh bắt buộc; phường/xã chọn hoặc gõ tay có tiền tố; trường không bắt buộc", async () => {
+    const { parseArea, parseChild, parseName } = await import("@/domain/area");
+    expect(parseArea({})).toEqual({ error: expect.stringMatching(/tỉnh/) });
+    expect(parseArea({ provinceId: "6", wardId: "12" })).toEqual({ provinceId: 6, wardId: 12, wardName: null, schoolId: null, schoolName: null });
+    expect(parseArea({ provinceId: "6", wardId: "khac", wardName: "  xã   Mỹ Khánh " })).toMatchObject({ wardId: null, wardName: "Xã Mỹ Khánh" });
+    expect(parseArea({ provinceId: "6", wardId: "khac", wardName: "Mỹ Khánh" })).toHaveProperty("error");
+    expect(parseArea({ provinceId: "6", wardId: "khac", wardName: "Xã Mỹ Khánh", schoolId: "s1" })).toHaveProperty("error");
+    expect(parseArea({ provinceId: "6", wardId: "3", schoolId: "khac", schoolName: "Trường MN Hoa Mai" })).toMatchObject({ schoolId: null, schoolName: "Trường MN Hoa Mai" });
+    expect(parseChild({})).toBeNull();
+    expect(parseChild({ classId: "c1", studentName: "An", relation: "Mẹ" })).toHaveProperty("error");
+    expect(parseChild({ classId: "c1", studentName: "Lê Minh An", relation: "Chú" })).toHaveProperty("error");
+    expect(parseChild({ classId: "c1", studentName: "Lê  Minh An", relation: "Mẹ" })).toEqual({ classId: "c1", studentName: "Lê Minh An", relation: "Mẹ" });
+    expect(parseName("Mai")).toHaveProperty("error");
+  });
+});
+
+describe("vòng phát lời nhờ", () => {
+  it("càng gần giờ đón càng mở rộng nhanh; có người nhận hoặc qua giờ thì dừng; có thù lao dừng ở trường", async () => {
+    const { dueEscalation, nextScope, stepMinutes } = await import("@/domain/ask");
+    expect([stepMinutes(8 * 60), stepMinutes(3 * 60), stepMinutes(30)]).toEqual([30, 15, 5]);
+    expect(nextScope("LOP")).toBe("TRUONG");
+    expect(nextScope("TRUONG", 50000)).toBeNull();
+    const start = new Date("2030-01-02T09:30:00Z");
+    const base = { scope: "LOP" as const, scopeAt: new Date("2030-01-02T07:00:00Z"), offers: 0, pickupStart: start, pickupEnd: new Date("2030-01-02T10:30:00Z") };
+    expect(dueEscalation(base, new Date("2030-01-02T07:10:00Z"))).toBeNull(); // còn 140 phút → bước 15, mới chờ 10
+    expect(dueEscalation(base, new Date("2030-01-02T07:16:00Z"))).toBe("TRUONG");
+    expect(dueEscalation({ ...base, offers: 1 }, new Date("2030-01-02T09:00:00Z"))).toBeNull();
+    expect(dueEscalation(base, new Date("2030-01-02T10:31:00Z"))).toBeNull();
+  });
+});
+
+describe("giới thiệu & chia sẻ doanh thu", async () => {
+  const { splitShares, proRata, evenSplit, payableFrom, isPayable, parseRefCode, refActive, canClaimRef } = await import("@/domain/share");
+  const part = (base: number, teacherIds: string[], teacherShare = true) => ({ base, classId: "c", schoolId: "s", teacherIds, teacherShare });
+
+  it("chia: giới thiệu 20% trên tổng, trường 10%, cô 5% chia đều; không cô hoặc trường tắt thì gộp về trường", () => {
+    expect(splitShares([part(39000, ["a", "b"])], "r").map((l) => [l.kind, l.userId ?? l.schoolId, l.amount]))
+      .toEqual([["GIOI_THIEU", "r", 7800], ["TRUONG", "s", 3900], ["GIAO_VIEN", "a", 975], ["GIAO_VIEN", "b", 975]]);
+    expect(splitShares([part(1000, ["a", "b", "c"])], null).filter((l) => l.kind === "GIAO_VIEN").reduce((s, l) => s + l.amount, 0)).toBe(50);
+    expect(splitShares([part(39000, [])], null).map((l) => [l.kind, l.amount])).toEqual([["TRUONG", 5850]]);
+    expect(splitShares([part(39000, ["a"], false)], null).map((l) => [l.kind, l.amount])).toEqual([["TRUONG", 5850]]);
+    expect(splitShares([part(0, ["a"])], "r")).toEqual([]);
+  });
+
+  it("chia tiền mặt theo tỉ lệ / chia đều: tổng luôn khớp", () => {
+    expect(proRata([6000, 3000], 6000)).toEqual([4000, 2000]);
+    expect(proRata([1, 1, 1], 100).reduce((s, x) => s + x, 0)).toBe(100);
+    expect(proRata([5000], 0)).toEqual([0]);
+    expect(evenSplit(39000, 2)).toEqual([19500, 19500]);
+    expect(evenSplit(10, 3)).toEqual([4, 3, 3]);
+  });
+
+  it("hạn chuyển, mã, 12 tháng, 7 ngày", () => {
+    expect(payableFrom("2026-10")).toBe("2026-11-08");
+    expect(payableFrom("2026-12")).toBe("2027-01-08");
+    expect(isPayable("2026-10", new Date("2026-11-07T12:00:00+07:00"))).toBe(false);
+    expect(isPayable("2026-10", new Date("2026-11-08T00:30:00+07:00"))).toBe(true);
+    expect(parseRefCode(" ab12-cd ")).toBe("AB12CD");
+    expect(parseRefCode("")).toBeNull();
+    expect(parseRefCode("ABC")).toMatchObject({ error: expect.any(String) });
+    const at = new Date("2026-01-15T00:00:00Z");
+    expect(refActive(at, new Date("2027-01-14T00:00:00Z"))).toBe(true);
+    expect(refActive(at, new Date("2027-01-16T00:00:00Z"))).toBe(false);
+    expect(refActive(null, at)).toBe(false);
+    expect(canClaimRef(at, new Date("2026-01-21T00:00:00Z"))).toBe(true);
+    expect(canClaimRef(at, new Date("2026-01-23T00:00:00Z"))).toBe(false);
   });
 });

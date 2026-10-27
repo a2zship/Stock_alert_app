@@ -4,7 +4,7 @@ import { db } from "./db";
 
 export async function rewardOf(userId: string): Promise<Pickup[]> {
   const done = await db.pickupRequest.findMany({
-    where: { delegateId: userId, status: "HOAN_TAT", fee: null }, // đón có phí không tính điểm tương trợ
+    where: { delegateId: userId, status: "HOAN_TAT", fee: null, contractId: null }, // đón có phí / theo tháng không tính điểm tương trợ
     select: { closedAt: true, createdAt: true, thanks: true, events: { where: { action: { in: ["TAO", "NGUOI_DON_NHAN"] } }, select: { action: true, at: true } } },
   });
   return done.map((r) => {

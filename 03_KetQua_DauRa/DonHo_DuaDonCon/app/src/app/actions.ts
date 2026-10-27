@@ -13,6 +13,10 @@ import * as G from "@/server/tracking";
 import * as P from "@/server/places";
 import * as E from "@/server/earn";
 import * as M from "@/server/membership";
+import * as TH from "@/server/monthly";
+import * as A from "@/server/area";
+import * as K from "@/server/asks";
+import * as S from "@/server/share";
 import { SESSION_COOKIE, sessionDays, signSession } from "@/lib/session";
 import { TransitionError } from "@/domain/state";
 
@@ -66,12 +70,70 @@ export async function verifyOtpAction(_: FormState, fd: FormData): Promise<FormS
     console.error(e);
     return { error: "Không đăng nhập được. Thử lại sau.", step: "code", phone: s(fd, "phone") };
   }
+  await startSession(userId);
+  const next = s(fd, "next");
+  redirect(next.startsWith("/") && !next.startsWith("//") ? next : "/");
+}
+
+async function startSession(userId: string) {
   const days = sessionDays();
   (await cookies()).set(SESSION_COOKIE, await signSession(appSecret(), userId, Date.now() + days * 86_400_000), {
     httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production" && !!process.env.PUBLIC_URL?.startsWith("https"), path: "/", maxAge: days * 86_400,
   });
-  const next = s(fd, "next");
-  redirect(next.startsWith("/") && !next.startsWith("//") ? next : "/");
+}
+
+// ── Đăng ký: khu vực thực tế + xin xác nhận con ──
+
+const AREA_KEYS = ["name", "phone", "provinceId", "wardId", "wardName", "schoolId", "schoolName", "classId", "studentName", "relation", "refCode"] as const;
+const signupInput = (fd: FormData) => Object.fromEntries(AREA_KEYS.map((k) => [k, s(fd, k)])) as A.SignupInput;
+
+export async function startSignupAction(_: FormState, fd: FormData): Promise<FormState> {
+  try {
+    const { phone } = await A.startSignup(signupInput(fd));
+    return { step: "code", phone, ok: `Đã gửi mã 6 số tới ${phone}.` };
+  } catch (e) {
+    if (e instanceof AppError) return { error: e.message, phone: s(fd, "phone") };
+    console.error(e);
+    return { error: "Không gửi được mã. Thử lại sau." };
+  }
+}
+
+export async function finishSignupAction(_: FormState, fd: FormData): Promise<FormState> {
+  let userId: string;
+  try {
+    userId = await A.finishSignup({ ...signupInput(fd), code: s(fd, "code") });
+  } catch (e) {
+    if (e instanceof AppError) return { error: e.message, step: "code", phone: s(fd, "phone") };
+    console.error(e);
+    return { error: "Không đăng ký được. Thử lại sau.", step: "code", phone: s(fd, "phone") };
+  }
+  await startSession(userId);
+  redirect("/");
+}
+
+export async function updateAreaAction(_: FormState, fd: FormData): Promise<FormState> {
+  return run(async (uid) => {
+    await A.updateArea(uid, signupInput(fd));
+    revalidatePath("/", "layout");
+    return { ok: "Đã lưu khu vực." };
+  });
+}
+
+export async function addClaimAction(_: FormState, fd: FormData): Promise<FormState> {
+  return run(async (uid) => {
+    if (!(await A.addClaim(uid, signupInput(fd)))) return { error: "Chọn lớp và ghi họ tên bé." };
+    revalidatePath("/khu-vuc");
+    return { ok: "Đã gửi cô lớp xác nhận. Cô sẽ gọi điện cho bạn trước khi xác nhận." };
+  });
+}
+
+export async function reviewClaimAction(_: FormState, fd: FormData): Promise<FormState> {
+  return run(async (uid) => {
+    const approve = decision(fd, "approve", "reject");
+    await A.reviewClaim(uid, s(fd, "id"), { approve, studentId: s(fd, "studentId"), calledParent: fd.get("calledParent") === "on", note: s(fd, "note") });
+    revalidatePath("/giao-vien/phu-huynh-moi");
+    return { ok: approve ? "Đã xác nhận phụ huynh." : "Đã từ chối và báo phụ huynh." };
+  });
 }
 
 export async function logoutAction() {
@@ -318,10 +380,138 @@ export async function chooseOfferAction(_: FormState, fd: FormData): Promise<For
   redirect(`/yeu-cau/${id}?moi=1`);
 }
 
+// ── Giới thiệu bạn bè & chia sẻ doanh thu ──
+
+export async function claimReferralAction(_: FormState, fd: FormData): Promise<FormState> {
+  return run(async (uid) => {
+    await S.claimReferral(uid, s(fd, "refCode"));
+    revalidatePath("/gioi-thieu");
+    return { ok: "Đã ghi nhận người giới thiệu." };
+  });
+}
+
+const payInput = (fd: FormData) => ({ bankBin: s(fd, "bankBin"), bankAccount: s(fd, "bankAccount"), accountName: s(fd, "accountName") });
+
+export async function savePayAccountAction(_: FormState, fd: FormData): Promise<FormState> {
+  return run(async (uid) => {
+    await S.savePayAccount(uid, payInput(fd));
+    revalidatePath("/chia-se");
+    return { ok: "Đã lưu tài khoản nhận." };
+  });
+}
+
+export async function saveSchoolPayAction(_: FormState, fd: FormData): Promise<FormState> {
+  return run(async (uid) => {
+    await S.saveSchoolPay(uid, s(fd, "schoolId"), payInput(fd));
+    revalidatePath("/chia-se");
+    return { ok: "Đã lưu tài khoản nhận của trường." };
+  });
+}
+
+export async function setTeacherShareAction(_: FormState, fd: FormData): Promise<FormState> {
+  return run(async (uid) => {
+    const on = decision(fd, "on", "off");
+    await S.setTeacherShare(uid, s(fd, "schoolId"), on);
+    revalidatePath("/chia-se");
+    return { ok: on ? "Đã bật phần chia cho giáo viên." : "Đã gộp phần của giáo viên về trường." };
+  });
+}
+
+export async function markPayoutAction(_: FormState, fd: FormData): Promise<FormState> {
+  return run(async (uid) => {
+    await S.markPayout(uid, s(fd, "key"));
+    revalidatePath("/quan-tri/chia-se");
+    return { ok: "Đã ghi nhận chuyển khoản và báo người nhận." };
+  });
+}
+
+export async function widenAskAction(_: FormState, fd: FormData): Promise<FormState> {
+  return run(async (uid) => {
+    const to = await K.widenAsk(uid, s(fd, "postId"));
+    revalidatePath("/nhom");
+    return { ok: to === "TRUONG" ? "Đã gửi lời nhờ tới phụ huynh cả trường." : "Đã gửi lời nhờ tới phụ huynh sống cùng phường/xã." };
+  });
+}
+
 export async function closePostAction(_: FormState, fd: FormData): Promise<FormState> {
   return run(async (uid) => {
     await C.closePost(uid, s(fd, "postId"));
     revalidatePath("/nhom");
     return { ok: "Đã đóng lời nhờ." };
+  });
+}
+
+// ── Đón theo tháng ──
+
+export async function createMonthlyAction(_: FormState, fd: FormData): Promise<FormState> {
+  let id = "";
+  const res = await run(async (uid) => {
+    const place = s(fd, "placeId") ? (await P.placesOf(uid)).find((p) => p.id === s(fd, "placeId")) : null;
+    id = await TH.createMonthly(uid, {
+      studentId: s(fd, "studentId"), month: s(fd, "month"), weekdays: fd.getAll("weekdays"), fee: s(fd, "fee"),
+      helperPhone: s(fd, "mode") === "chi-dinh" ? s(fd, "helperPhone") : "", note: s(fd, "note"),
+      drop: place ? { label: place.label, address: place.address, ward: place.ward, lat: place.lat, lng: place.lng } : undefined,
+    });
+  });
+  if (res?.error) return res;
+  redirect(`/thang/${id}`);
+}
+
+/** Các nút trên trang hợp đồng: cùng một mẫu "gọi nghiệp vụ → tải lại trang → báo kết quả". */
+function onContract(fd: FormData, fn: (uid: string, id: string) => Promise<unknown>, ok: string): Promise<FormState> {
+  return run(async (uid) => {
+    await fn(uid, s(fd, "id"));
+    revalidatePath(`/thang/${s(fd, "id")}`);
+    revalidatePath("/kiem-tien");
+    return { ok };
+  });
+}
+
+export async function cancelMonthlyAction(_: FormState, fd: FormData): Promise<FormState> {
+  return onContract(fd, (u, id) => TH.cancelMonthly(u, id), "Đã huỷ hợp đồng.");
+}
+export async function offerMonthlyAction(_: FormState, fd: FormData): Promise<FormState> {
+  return onContract(fd, (u, id) => TH.offerMonthly(u, id), "Đã báo phụ huynh. Nếu được chọn, cô sẽ duyệt rồi bạn nhận lịch đón.");
+}
+export async function withdrawMonthlyAction(_: FormState, fd: FormData): Promise<FormState> {
+  return onContract(fd, (u, id) => TH.withdrawMonthlyOffer(u, id), "Đã rút.");
+}
+export async function chooseMonthlyAction(_: FormState, fd: FormData): Promise<FormState> {
+  return onContract(fd, (u, id) => TH.chooseMonthlyOffer(u, id, s(fd, "helperId")), "Đã chọn người đón. Đang chờ cô duyệt.");
+}
+export async function markMonthlyPaidAction(_: FormState, fd: FormData): Promise<FormState> {
+  return onContract(fd, (u, id) => TH.markMonthlyPaid(u, id), "Đã báo người đón. Lịch đón bắt đầu theo các buổi đã chọn.");
+}
+export async function markMonthlyReceivedAction(_: FormState, fd: FormData): Promise<FormState> {
+  return onContract(fd, (u, id) => TH.markMonthlyReceived(u, id), "Đã ghi nhận.");
+}
+export async function skipMonthlyDayAction(_: FormState, fd: FormData): Promise<FormState> {
+  return onContract(fd, (u, id) => TH.skipMonthlyDay(u, id, s(fd, "date")), "Đã huỷ buổi này và báo người đón.");
+}
+export async function missMonthlyDayAction(_: FormState, fd: FormData): Promise<FormState> {
+  return onContract(fd, (u, id) => TH.missMonthlyDay(u, id, s(fd, "date"), s(fd, "note")), "Đã báo nghỉ. Phụ huynh và cô đã được báo.");
+}
+export async function endMonthlyAction(_: FormState, fd: FormData): Promise<FormState> {
+  return onContract(fd, (u, id) => TH.endMonthly(u, id, s(fd, "reason")), "Đã dừng hợp đồng. Bên kia và cô đã được báo.");
+}
+export async function markRefundedAction(_: FormState, fd: FormData): Promise<FormState> {
+  return onContract(fd, (u, id) => TH.markRefunded(u, id), "Đã ghi nhận hoàn tiền.");
+}
+
+export async function helperRespondMonthlyAction(_: FormState, fd: FormData): Promise<FormState> {
+  return run(async (uid) => {
+    const accept = decision(fd, "accept", "decline");
+    await TH.helperRespondMonthly(uid, s(fd, "id"), accept, s(fd, "note"));
+    revalidatePath(`/thang/${s(fd, "id")}`);
+    return { ok: accept ? "Đã nhận lời. Chờ cô duyệt." : "Đã báo phụ huynh." };
+  });
+}
+
+export async function teacherDecideMonthlyAction(_: FormState, fd: FormData): Promise<FormState> {
+  return run(async (uid) => {
+    const approve = decision(fd, "approve", "reject");
+    await TH.teacherDecideMonthly(uid, s(fd, "id"), approve, { calledParent: fd.get("calledParent") === "on", note: s(fd, "note") });
+    revalidatePath(`/thang/${s(fd, "id")}`);
+    return { ok: approve ? "Đã duyệt. Mỗi buổi app tự tạo mã đón; tại cổng vẫn kiểm như thường." : "Đã từ chối và báo phụ huynh." };
   });
 }

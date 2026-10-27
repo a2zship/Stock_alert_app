@@ -20,6 +20,8 @@ import { trackingView } from "@/server/tracking";
 
 const ACTION_LABEL: Record<string, { text: string; icon: IconName; tone?: "ok" | "danger" | "warn" }> = {
   TAO: { text: "Phụ huynh gửi yêu cầu đón hộ", icon: "plus", tone: "ok" },
+  TAO_THEO_THANG: { text: "Buổi đón theo tháng: tự tạo, đã duyệt sẵn, sinh mã đón", icon: "calendar", tone: "ok" },
+  NGUOI_DON_BAO_NGHI: { text: "Người đón báo nghỉ buổi này", icon: "x", tone: "danger" },
   NGUOI_DON_NHAN: { text: "Người đón nhận lời", icon: "hand", tone: "ok" },
   NGUOI_DON_TU_CHOI: { text: "Người đón từ chối", icon: "x", tone: "danger" },
   GV_DUYET: { text: "Giáo viên duyệt, sinh mã đón", icon: "shield", tone: "ok" },
@@ -67,6 +69,7 @@ export default async function RequestPage({ params, searchParams }: { params: Pr
       <PageHead title={`Đón bé ${r.student.name}`} sub={`${r.student.class.name} · ${r.student.class.school.name} · ${showWindow(r.windowStart, r.windowEnd)}`}>
         <StatusBadge status={status} />
       </PageHead>
+      {r.contractId && <Note>Buổi của hợp đồng <Link href={`/thang/${r.contractId}`}>đón theo tháng</Link>: cô đã duyệt người đón một lần, tại cổng vẫn kiểm mã, ảnh và CCCD.</Note>}
       {moi && asParent && status === "CHO_NGUOI_DON" && <Note kind="ok">Đã gửi. {r.delegateName} sẽ nhận tin nhắn để nhận lời; sau đó giáo viên duyệt.</Note>}
 
       <Journey status={status} events={r.events} />

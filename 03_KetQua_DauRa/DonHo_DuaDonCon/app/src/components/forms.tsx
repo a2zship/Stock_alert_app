@@ -1,6 +1,6 @@
 "use client";
 // Form gọi server action, tự hiện lỗi/thành công cạnh form và khoá nút khi đang gửi.
-import { useActionState, useEffect, useRef, useState } from "react";
+import { startTransition, useActionState, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import type { FormState } from "@/app/actions";
 import { Icon } from "./Icon";
@@ -8,10 +8,27 @@ import { Note } from "./ui";
 
 type Action = (s: FormState, fd: FormData) => Promise<FormState>;
 
-export function ActionForm({ action, children, className, resetOnOk = false }: { action: Action; children: React.ReactNode; className?: string; resetOnOk?: boolean }) {
-  const [state, formAction] = useActionState(action, null);
+/**
+ * `keep`: gửi bằng onSubmit thay vì prop action — React tự xoá form sau mỗi lần gửi qua action,
+ * làm ô chọn có điều khiển (bộ chọn khu vực) lệch với giá trị đã lưu. Khi đó khoá cả form lúc đang gửi.
+ */
+export function ActionForm({ action, children, className, resetOnOk = false, keep = false }: { action: Action; children: React.ReactNode; className?: string; resetOnOk?: boolean; keep?: boolean }) {
+  const [state, formAction, pending] = useActionState(action, null);
   const ref = useRef<HTMLFormElement>(null);
   useEffect(() => { if (resetOnOk && state?.ok) ref.current?.reset(); }, [state, resetOnOk]);
+  if (keep) {
+    return (
+      <form ref={ref} className={className} aria-busy={pending} onSubmit={(e) => {
+        e.preventDefault();
+        const fd = new FormData(e.currentTarget);
+        startTransition(() => formAction(fd));
+      }}>
+        {state?.error && <Note kind="error">{state.error}</Note>}
+        {state?.ok && <Note kind="ok">{state.ok}</Note>}
+        <fieldset disabled={pending} className="plain-fieldset">{children}</fieldset>
+      </form>
+    );
+  }
   return (
     <form ref={ref} action={formAction} className={className}>
       {state?.error && <Note kind="error">{state.error}</Note>}

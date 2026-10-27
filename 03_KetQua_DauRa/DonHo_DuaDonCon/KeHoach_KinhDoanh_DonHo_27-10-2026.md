@@ -93,6 +93,8 @@
 - Ước lượng thô: 3% phụ huynh mua, giá bình quân 60.000đ → khoảng 1.800đ/trẻ/tháng, cộng thêm vào 15.000đ phí trường **[GIẢ ĐỊNH, cần số thí điểm]**. Mua gói làm giảm khoản trích 10% từ đón có phí, nên hai nguồn thu một phần ăn vào nhau.
 - Rủi ro: phụ huynh coi việc trả phí là "trường thu thêm tiền" → nói rõ phần miễn phí đủ dùng; cần chính sách hoàn tiền + hoá đơn **[CẦN XÁC MINH]**.
 
+**Đón theo tháng (bổ sung 27/10, chưa tính vào mô hình tài chính):** phụ huynh trả trọn gói đầu tháng thẳng cho một người đón cố định; nền tảng trích phí theo hạng (10% Thường, 3% Kim cương). Ví dụ 21 buổi × 30.000đ = 630.000đ/tháng → nền tảng thu 19.000–63.000đ mỗi hợp đồng. Hợp đồng mở ưu tiên Kim cương 24 giờ là lý do chính để người đón thường xuyên mua Kim cương. Ước lượng thô: 1% số trẻ có hợp đồng tháng → khoảng 400đ/trẻ/tháng **[GIẢ ĐỊNH, cần số thí điểm]**. Đổi lại, đây là lần đầu app có **tiền trả trước**: rủi ro người đón bỏ ngang không hoàn tiền (xem mục 9).
+
 **Các khoản thu phụ (chưa tính vào mô hình tài chính):**
 - Phí cài đặt và tập huấn: 1–3 triệu/trường.
 - Đối tác tài trợ quyền lợi trong khung điểm tương trợ, ví dụ bảo hiểm hay hiệu sách. Khoản này chỉ làm khi trường đồng ý và đúng quy định quảng cáo trong trường học **[CẦN XÁC MINH]**.
@@ -223,6 +225,7 @@
 | **Vị trí (bản đồ) bị coi là dữ liệu nhạy cảm** | Trung bình | Trung bình | Đã thiết kế: người đón tự bật, chỉ giữ điểm mới nhất, xoá khi yêu cầu đóng **[ĐÃ KIỂM trong bản mẫu]**; luật sư xác nhận |
 | **Đón có phí bị coi là dịch vụ đưa đón trẻ cần đăng ký / trung gian thanh toán** | Trung bình | Cao | App không giữ tiền; chỉ phụ huynh cùng trường, cô duyệt; luật sư xác nhận trước khi bật **[CẦN XÁC MINH]**. Có thể tắt riêng tính năng theo trường |
 | **Tiền tạo động cơ lạ (người đón vì tiền, tranh việc)** | Thấp–trung bình | Cao | Mức tối thiểu 20–300 nghìn, giữ đủ bước cô gọi xác minh + kiểm tại cổng, cô tạm dừng được tài khoản, không lộ tên bé trên bảng việc |
+| **Đón theo tháng trả trước: người đón bỏ ngang không hoàn tiền** | Thấp–trung bình | Trung bình–cao (mất uy tín với phụ huynh) | App không giữ tiền nên không hoàn thay; người chưa hoàn quá 7 ngày bị chặn nhận việc có phí, cô được báo. Thí điểm nên: giới hạn trọn gói, cho trả nửa tháng, chỉ người có lịch sử tốt nhận hợp đồng tháng **[CẦN XÁC MINH với luật sư: hợp đồng dịch vụ giữa hai phụ huynh]** |
 | **Nền bản đồ miễn phí không dùng được để kinh doanh** | Cao | Thấp | Ký hợp đồng với nhà cung cấp bản đồ có khoá riêng trước khi bán **[CẦN XÁC MINH điều khoản]** |
 
 ---

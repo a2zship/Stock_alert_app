@@ -36,6 +36,7 @@ function navFor(me: NonNullable<Me>, unread: number): (NavItem & { spare?: boole
     items.push({ href: "/giao-vien/giao-tre", label: "Giao trẻ tại cổng", short: "Giao trẻ", icon: "qr" });
     items.push({ href: "/giao-vien/nguoi-tin-cay", label: "Duyệt người tin cậy", short: "Duyệt", icon: "userCheck", spare: me.isParent });
     items.push({ href: "/giao-vien/nguoi-don-co-phi", label: "Duyệt người đón có phí", short: "Có phí", icon: "banknote", spare: true });
+    items.push({ href: "/giao-vien/phu-huynh-moi", label: "Xác nhận phụ huynh mới", short: "PH mới", icon: "userCheck", spare: true });
   }
   if (me.isParent) {
     items.push({ href: "/phu-huynh", label: "Con của tôi", short: "Con", icon: "home" });
@@ -46,6 +47,11 @@ function navFor(me: NonNullable<Me>, unread: number): (NavItem & { spare?: boole
   if (me.isParent) items.push({ href: "/kiem-tien", label: "Kiếm thêm khi đón hộ", short: "Kiếm thêm", icon: "wallet", spare: true });
   if (me.isParent) items.push({ href: "/thanh-vien", label: "Thành viên ưu đãi", short: "Thành viên", icon: "star", spare: true });
   if (me.isParent) items.push({ href: "/nguoi-tin-cay", label: "Người tin cậy", short: "Tin cậy", icon: "users", spare: true });
+  if (me.isTeacher || me.isSchoolAdmin) items.push({ href: "/chia-se", label: "Chia sẻ doanh thu", short: "Chia sẻ", icon: "banknote", spare: me.isTeacher || me.isParent });
+  if (me.isPlatformAdmin) items.push({ href: "/quan-tri/chia-se", label: "Quản trị: chuyển chia sẻ", short: "Quản trị", icon: "key", spare: true });
+  items.push({ href: "/gioi-thieu", label: "Giới thiệu bạn bè", short: "Giới thiệu", icon: "gift", spare: true });
+  // người vừa đăng ký chưa có vai trò: Khu vực là trang chính nên không bỏ khỏi thanh dưới
+  items.push({ href: "/khu-vuc", label: "Khu vực của tôi", short: "Khu vực", icon: "mapPin", spare: me.isParent || me.isTeacher || me.isDelegate });
   items.push({ href: "/hop-tin", label: "Hộp tin", short: "Hộp tin", icon: "inbox", count: unread });
   return items;
 }
@@ -84,6 +90,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               <aside className="sidebar">
                 <Brand />
                 <div className="user-chip"><Avatar name={me.name} size="sm" /><span>{me.name}</span></div>
+                {me.area && <Link href="/khu-vuc" className="area-chip"><Icon name="mapPin" size={16} /><span>{me.area.ward}, {me.area.province}</span></Link>}
                 <SideNav items={items} />
                 <div className="sidebar-foot">
                   <form action={logoutAction}>
@@ -96,6 +103,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 <header className="mobilebar">
                   <Brand />
                   <span className="spacer" />
+                  {me.area && <Link href="/khu-vuc" className="area-chip area-chip-bar" aria-label={`Khu vực: ${me.area.ward}, ${me.area.province}`}><Icon name="mapPin" size={16} /><span>{me.area.ward}</span></Link>}
                   <form action={logoutAction}>
                     <button type="submit" className="lock-btn lock-btn-compact" aria-label="Đăng xuất"><Icon name="logout" /></button>
                   </form>

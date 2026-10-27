@@ -23,6 +23,7 @@ function perks(t: MemberTier, base: number) {
     helper: [
       `Phí nền tảng ${r} trên thù lao thực nhận`,
       `Hạn mức nợ phí ${showVnd(t.owedLimit)} · ${t.owedDays} ngày`,
+      ...(t.key === "KIM_CUONG" ? ["Thấy và nhận hợp đồng đón theo tháng trước 24 giờ"] : []),
     ],
     requester: [
       t.key === "THUONG" ? "Người đón giúp bạn chịu phí nền tảng thường" : `Người đón giúp bạn chỉ chịu phí ${r} — nhận nhiều hơn, dễ có người nhận`,
@@ -41,7 +42,7 @@ export default async function MemberPage({ searchParams }: { searchParams: Promi
   const [current, history] = await Promise.all([tierOf(me.id), membershipHistory(me.id)]);
   const months = thang === "12" ? 12 : 1;
   const order = isPaidTier(hang) ? await membershipQr(me.id, hang, months) : null;
-  const orderSvg = order ? await QRCode.toString(order.qr, { type: "svg", margin: 1, errorCorrectionLevel: "M" }) : null;
+  const orderSvg = order?.qr ? await QRCode.toString(order.qr, { type: "svg", margin: 1, errorCorrectionLevel: "M" }) : null;
 
   return (
     <>
@@ -87,23 +88,26 @@ export default async function MemberPage({ searchParams }: { searchParams: Promi
                 <Link href={`/thanh-vien?hang=${hang}&thang=1#mua`} className={`btn btn-sm ${months === 1 ? "btn-accent" : "btn-plain"}`} aria-current={months === 1 ? "true" : undefined}>1 tháng · {showVnd(priceOf(hang, 1))}</Link>
                 <Link href={`/thanh-vien?hang=${hang}&thang=12#mua`} className={`btn btn-sm ${months === 12 ? "btn-accent" : "btn-plain"}`} aria-current={months === 12 ? "true" : undefined}>12 tháng · {showVnd(priceOf(hang, 12))} (tặng 2 tháng)</Link>
               </div>
-              {order && orderSvg ? (
+              {order ? (
                 <>
-                  <p className="small muted">Quét mã bằng app ngân hàng; tiền vào tài khoản của nền tảng Đón Hộ. {tierRank(hang) > tierRank(current.key) ? "Nâng hạng có hiệu lực ngay." : "Gói nối tiếp sau gói đang dùng."}</p>
-                  <div className="pay-box">
+                  <p className="small muted">{order.amount ? "Quét mã bằng app ngân hàng; tiền vào tài khoản của nền tảng Đón Hộ." : `Tín dụng giới thiệu đủ trả gói này (${showVnd(order.price)}), không cần chuyển khoản.`} {tierRank(hang) > tierRank(current.key) ? "Nâng hạng có hiệu lực ngay." : "Gói nối tiếp sau gói đang dùng."}</p>
+                  {order.amount > 0 && orderSvg && <div className="pay-box">
                     <div className="qr" role="img" aria-label={`Mã VietQR mua gói ${tierInfo(hang).name} ${months} tháng`} dangerouslySetInnerHTML={{ __html: orderSvg }} />
                     <dl className="kv">
                       <dt>Số tiền</dt><dd className="money">{showVnd(order.amount)}</dd>
+                      {order.credit > 0 && <><dt>Tín dụng</dt><dd className="money">−{showVnd(order.credit)} (giá {showVnd(order.price)})</dd></>}
                       <dt>Ngân hàng</dt><dd>{order.bank}</dd>
                       <dt>Tài khoản</dt><dd>{order.account}</dd>
                       <dt>Chủ TK</dt><dd>{order.name}</dd>
                       <dt>Nội dung</dt><dd>{order.note}</dd>
                     </dl>
-                  </div>
+                  </div>}
                   <ActionForm action={buyMembershipAction} className="mt-10">
                     <input type="hidden" name="tier" value={hang} />
                     <input type="hidden" name="months" value={months} />
-                    <SubmitButton className="btn btn-ok" confirm={`Bạn đã chuyển ${showVnd(order.amount)} cho gói ${tierInfo(hang).name} ${months} tháng?`}><Icon name="check" size={16} />Tôi đã chuyển khoản</SubmitButton>
+                    <SubmitButton className="btn btn-ok" confirm={order.amount ? `Bạn đã chuyển ${showVnd(order.amount)} cho gói ${tierInfo(hang).name} ${months} tháng?` : `Dùng ${showVnd(order.credit)} tín dụng cho gói ${tierInfo(hang).name} ${months} tháng?`}>
+                      <Icon name="check" size={16} />{order.amount ? "Tôi đã chuyển khoản" : "Dùng tín dụng mua gói"}
+                    </SubmitButton>
                   </ActionForm>
                 </>
               ) : <Note kind="warn">Nền tảng chưa cấu hình tài khoản nhận tiền, chưa mua gói được.</Note>}

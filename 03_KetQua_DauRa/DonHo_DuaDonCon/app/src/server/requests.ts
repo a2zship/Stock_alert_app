@@ -9,8 +9,11 @@ import {
   AUTO_CLOSE_MS, GATE_VERIFY_TTL_MS, PIN_MAX_ATTEMPTS, STATUS_LABEL,
   codeUsableAt, transition, type Action, type Role, type Status,
 } from "@/domain/state";
+import { commissionOf } from "@/domain/money";
+import { refundableDays, refundOf, scheduleDays } from "@/domain/monthly";
 import { addDays, showWindow, vnDateTime, vnToday } from "@/domain/time";
 import { requireGuardian, requireTeacher } from "./access";
+import { escalateAsks } from "./asks";
 import { AppError, appSecret, db, publicUrl } from "./db";
 import { guardiansOf, notify, teachersOf } from "./notify";
 import { seal } from "./seal";
@@ -45,6 +48,9 @@ const CLEAR_LOC = { delegateLat: null, delegateLng: null, delegateLocAt: null, .
 
 /** Hết khung giờ mà chưa giao → HET_HAN; đã giao 24 giờ mà phụ huynh chưa xác nhận → tự đóng. Gọi mỗi lần đọc. */
 export async function sweep(now = new Date()) {
+  await closeFinishedMonths(now);
+  await ensureMonthlyDays(now);
+  await escalateAsks(now); // lời nhờ chưa ai nhận: lớp → trường → khu vực sống
   const overdue = await db.pickupRequest.findMany({
     where: { status: { in: ["CHO_NGUOI_DON", "CHO_GIAO_VIEN", "DA_DUYET"] }, windowEnd: { lt: now } },
     select: { id: true, status: true, studentId: true },
@@ -63,6 +69,89 @@ export async function sweep(now = new Date()) {
     await db.$transaction((tx) => move(tx, r, "TU_DONG_DONG", "HE_THONG", null, { closedAt: now, autoClosed: true, ...CLEAR_LOC }, "Tự đóng sau 24 giờ"))
       .catch((e) => { if (!(e instanceof AppError)) throw e; });
   }
+}
+
+// ─────────────────────────── Đón theo tháng: tự sinh buổi đón ───────────────────────────
+
+const ACTIVE_REQ: RequestStatus[] = ["CHO_NGUOI_DON", "CHO_GIAO_VIEN", "DA_DUYET"];
+
+/**
+ * Hợp đồng tháng đã duyệt VÀ đã trả trước: hôm nay có buổi → tạo yêu cầu ĐÃ DUYỆT với mã QR/PIN mới.
+ * Cô đã duyệt người đón + lịch một lần (kèm gọi xác minh phụ huynh); tại cổng vẫn kiểm mã, ảnh, CCCD như mọi buổi.
+ * [Chạy thật nên đặt lịch hằng ngày; bản mẫu sinh khi có người mở app.]
+ */
+export async function ensureMonthlyDays(now = new Date()) {
+  const today = vnToday(now);
+  const list = await db.monthlyContract.findMany({
+    where: { status: "DA_DUYET", paidAt: { not: null }, month: today.slice(0, 7), helperId: { not: null } },
+    include: { student: { include: { class: true } }, helper: { include: { helper: true } }, requester: true },
+  });
+  for (const c of list) {
+    if (!scheduleDays(c.month, c.weekdays, c.firstDay).includes(today)) continue;
+    if (c.skipDates.includes(today) || c.missDates.includes(today) || (c.endDate && today > c.endDate)) continue;
+    const prof = c.helper!.helper;
+    if (prof?.status !== "DA_DUYET") continue; // người đón bị tạm dừng → không sinh buổi, phụ huynh thấy cảnh báo
+    const windowStart = vnDateTime(today, c.student.class.pickupStart);
+    const windowEnd = vnDateTime(today, c.student.class.pickupEnd);
+    if (windowEnd <= now) continue;
+    await db.$transaction(async (tx) => {
+      const exists = await tx.pickupRequest.count({ where: { studentId: c.studentId, windowStart, OR: [{ contractId: c.id }, { status: { in: ACTIVE_REQ } }] } });
+      if (exists) return; // đã sinh, hoặc phụ huynh đã tự nhờ người khác cho ca này
+      const token = newToken();
+      const pin = newPin();
+      const secret = appSecret();
+      const r = await tx.pickupRequest.create({ data: {
+        studentId: c.studentId, requesterId: c.requesterId, delegateId: c.helperId!, isAdhoc: true, contractId: c.id,
+        delegateName: c.helper!.name, delegatePhone: c.helper!.phone, relation: "Người đón theo tháng",
+        cccdLast4: prof.cccdLast4, delegatePhotoId: prof.photoId, reason: `Đón theo tháng ${c.month}`, windowStart, windowEnd,
+        status: "DA_DUYET", decidedById: c.decidedById, decidedAt: now, teacherCalledParent: c.teacherCalledParent,
+        tokenHash: hashCode(secret, "token", token),
+        dropLabel: c.dropLabel, dropAddress: c.dropAddress, dropWard: c.dropWard, dropLat: c.dropLat, dropLng: c.dropLng,
+      } });
+      // PIN băm theo id yêu cầu → cập nhật sau khi có id
+      await tx.pickupRequest.update({ where: { id: r.id }, data: { pinHash: hashCode(secret, `pin:${r.id}`, pin), codeSealed: seal(secret, { token, pin }) } });
+      await tx.requestEvent.create({ data: { requestId: r.id, actorId: null, actorRole: "HE_THONG", action: "TAO_THEO_THANG", toStatus: "DA_DUYET", note: "Hợp đồng tháng đã được cô duyệt" } });
+      const when = showWindow(windowStart, windowEnd);
+      await notify(tx, [{ userId: c.helperId, phone: c.helper!.phone }], "SMS",
+        `Hom nay ban don be ${c.student.name} (${c.student.class.name}) luc ${when} theo hop dong thang. Mo link lay ma don, mang theo CCCD: ${link(`/yeu-cau/${r.id}`)}`, `/yeu-cau/${r.id}`);
+      await notify(tx, await guardiansOf(tx, c.studentId), "PUSH", `Hôm nay ${c.helper!.name} đón bé ${c.student.name} lúc ${when} (đón theo tháng).`, `/yeu-cau/${r.id}`);
+    });
+  }
+}
+
+/** Hết tháng → kết thúc hợp đồng; buổi người đón báo nghỉ được hoàn tiền. */
+async function closeFinishedMonths(now: Date) {
+  const month = vnToday(now).slice(0, 7);
+  const done = await db.monthlyContract.findMany({ where: { status: { in: ["DA_DUYET", "TIM_NGUOI", "CHO_NGUOI_DON", "CHO_GIAO_VIEN"] }, month: { lt: month } } });
+  for (const c of done) {
+    const running = c.status === "DA_DUYET";
+    const days = scheduleDays(c.month, c.weekdays, c.firstDay);
+    const refund = running && c.paidAmount ? refundOf(c.paidAmount, days.length, refundableDays({ days, missed: c.missDates, endDate: null, by: "HE_THONG" })) : 0;
+    await db.$transaction(async (tx) => {
+      const res = await tx.monthlyContract.updateMany({ where: { id: c.id, status: c.status }, data: {
+        status: running ? "KET_THUC" : "DA_HUY", endedAt: now, endedBy: "HE_THONG", endReason: running ? "Hết tháng" : "Hết tháng mà chưa có người đón được duyệt",
+        refundDue: refund || null, dropAddress: null, dropLat: null, dropLng: null,
+        ...(refund && c.paidAmount && c.rate != null && !c.settlementId && { commission: commissionOf(c.paidAmount - refund, c.rate) }),
+      } });
+      if (res.count !== 1) return;
+      if (refund && c.helperId) {
+        const h = await tx.user.findUniqueOrThrow({ where: { id: c.helperId } });
+        await notify(tx, [{ userId: h.id, phone: h.phone }], "PUSH", `Hợp đồng đón ${c.month} đã kết thúc. Bạn cần hoàn ${new Intl.NumberFormat("vi-VN").format(refund)}đ cho các buổi đã báo nghỉ.`, `/thang/${c.id}`);
+      }
+    });
+  }
+}
+
+/** Đón theo tháng: người đón báo nghỉ buổi đã sinh sẵn → huỷ mã, báo phụ huynh và cô. */
+export async function helperSkipRequest(userId: string, requestId: string, note: string) {
+  const r = await db.pickupRequest.findUniqueOrThrow({ where: { id: requestId }, include: { student: true } });
+  if (r.delegateId !== userId || !r.contractId) throw new AppError("Yêu cầu này không gửi cho bạn.");
+  await db.$transaction(async (tx) => {
+    await move(tx, r, "NGUOI_DON_BAO_NGHI", "NGUOI_DON", userId, { tokenHash: null, pinHash: null, codeSealed: null, closedAt: new Date(), ...CLEAR_LOC }, note);
+    const msg = `${r.delegateName} báo NGHỈ buổi đón bé ${r.student.name} lúc ${showWindow(r.windowStart, r.windowEnd)}. Mã đón đã huỷ — phụ huynh cần nhờ người khác.`;
+    await notify(tx, await guardiansOf(tx, r.studentId), "SMS", msg, `/yeu-cau/${r.id}`);
+    await notify(tx, await teachersOf(tx, r.studentId), "PUSH", msg, `/yeu-cau/${r.id}`);
+  });
 }
 
 // ─────────────────────────── Phụ huynh ───────────────────────────
@@ -125,6 +214,7 @@ export async function createRequest(parentId: string, input: CreateInput, now = 
     const clash = await tx.pickupRequest.findFirst({
       where: { studentId: student.id, status: { in: ["CHO_NGUOI_DON", "CHO_GIAO_VIEN", "DA_DUYET"] }, windowStart },
     });
+    if (clash?.contractId) throw new AppError("Ca này đã có buổi đón theo hợp đồng tháng. Muốn nhờ người khác, huỷ buổi đó ở trang hợp đồng trước.");
     if (clash) throw new AppError("Đã có một yêu cầu đón hộ đang chạy cho ca này. Huỷ yêu cầu cũ trước nếu muốn đổi người.");
 
     let du = await tx.user.findUnique({ where: { phone: delegate.phone } });

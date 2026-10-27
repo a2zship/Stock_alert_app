@@ -1,15 +1,18 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import QRCode from "qrcode";
-import { offerHelpAction, registerHelperAction, settleCommissionAction } from "@/app/actions";
+import { offerHelpAction, offerMonthlyAction, registerHelperAction, settleCommissionAction, withdrawMonthlyAction } from "@/app/actions";
 import { ActionForm, PhotoInput, SubmitButton } from "@/components/forms";
 import { Icon } from "@/components/Icon";
 import { Empty, Note, PageHead, StatusBadge } from "@/components/ui";
 import { FEE_MAX, FEE_MIN, showVnd } from "@/domain/money";
+import { MONTHLY_LABEL, showDays, showMonth } from "@/domain/monthly";
 import type { Status } from "@/domain/state";
+import { showDateTime } from "@/domain/time";
 import { BANKS, bankName } from "@/domain/vietqr";
 import { db } from "@/server/db";
 import { earnings, paidBoard } from "@/server/earn";
+import { monthlyBoard } from "@/server/monthly";
 import { currentUser } from "@/server/queries";
 
 const pct = (r: number) => `${Math.round(r * 100)}%`;
@@ -19,7 +22,10 @@ export default async function EarnPage() {
   if (!me?.isParent) redirect("/");
   const prof = await db.helperProfile.findUnique({ where: { userId: me.id } });
   const approved = prof?.status === "DA_DUYET";
-  const [board, earn] = await Promise.all([approved ? paidBoard(me.id) : [], earnings(me.id)]);
+  const [board, earn, mb, mine] = await Promise.all([
+    approved ? paidBoard(me.id) : [], earnings(me.id), monthlyBoard(me.id),
+    db.monthlyContract.findMany({ where: { helperId: me.id }, include: { student: { include: { class: true } } }, orderBy: { month: "desc" }, take: 12 }),
+  ]);
   const settleSvg = earn.settleQr ? await QRCode.toString(earn.settleQr.qr, { type: "svg", margin: 1, errorCorrectionLevel: "M" }) : null;
 
   return (
@@ -28,7 +34,7 @@ export default async function EarnPage() {
 
       {approved && (
         <div className="stat-row">
-          <div><div className="k">Tháng này</div><div className="money-lg">{showVnd(earn.month.net)}</div><div className="small muted">{earn.month.jobs} lượt · thực nhận sau phí</div></div>
+          <div><div className="k">Tháng này</div><div className="money-lg">{showVnd(earn.month.net)}</div><div className="small muted">{earn.month.jobs} lượt{earn.month.contracts ? ` + ${earn.month.contracts} hợp đồng tháng` : ""} · thực nhận sau phí</div></div>
           <div><div className="k">Chờ phụ huynh chuyển</div><div className="money-lg">{showVnd(earn.waitingPay)}</div></div>
           <div><div className="k">Phí nền tảng còn nợ</div><div className="money-lg">{showVnd(earn.owed.amount)}</div>{earn.owed.overdue && <div className="small" style={{ color: "var(--danger)" }}>Quá hạn — tạm không nhận việc mới</div>}</div>
         </div>
@@ -99,6 +105,43 @@ export default async function EarnPage() {
             </div>
           )}
 
+          {approved && (
+            <div className="card" id="thang">
+              <h2>Hợp đồng đón theo tháng {mb.rows.length > 0 && <span className="count">{mb.rows.length}</span>}</h2>
+              <p className="small muted">{mb.vip ? "Bạn là thành viên Kim cương: thấy và nhận hợp đồng mới trước 24 giờ." : <>Hợp đồng mới mở: 24 giờ đầu dành cho thành viên <Link href="/thanh-vien">Kim cương</Link>.</>}</p>
+              {mb.rows.length === 0 ? <Empty icon="calendar">Chưa có hợp đồng tháng nào đang tìm người.</Empty> : mb.rows.map((b) => (
+                <div key={b.id} className="job">
+                  <div>
+                    <strong>{b.className}</strong> · {showMonth(b.month)}{b.priority && <span className="badge badge-info ml-5"><Icon name="star" size={12} />Ưu tiên Kim cương</span>}
+                    <div className="meta">{showDays(b.weekdays)} · {b.time} · {b.days} buổi{b.ward ? ` · trả bé ở ${b.ward}` : ""}{b.note ? ` · “${b.note}”` : ""}</div>
+                    <div className="meta">Trọn gói <span className="money">{showVnd(b.fee)}</span> · bạn nhận <span className="money">{showVnd(b.net)}</span>{b.offers ? ` · ${b.offers} người đã nhận` : ""}</div>
+                  </div>
+                  {b.offered ? (
+                    <ActionForm action={withdrawMonthlyAction} className="inline">
+                      <input type="hidden" name="id" value={b.id} />
+                      <SubmitButton className="btn btn-plain btn-sm">Rút lại</SubmitButton>
+                    </ActionForm>
+                  ) : b.locked ? <span className="badge badge-muted"><Icon name="lock" size={12} />Mở từ {showDateTime(b.priorityUntil!)}</span> : (
+                    <ActionForm action={offerMonthlyAction} className="inline">
+                      <input type="hidden" name="id" value={b.id} />
+                      <SubmitButton className="btn btn-accent btn-sm" confirm={`Nhận đón cả ${showMonth(b.month)} (${b.days} buổi) với trọn gói ${showVnd(b.fee)}? Nếu được chọn, cô sẽ duyệt một lần.`}><Icon name="calendar" size={16} />Tôi nhận cả tháng</SubmitButton>
+                    </ActionForm>
+                  )}
+                </div>
+              ))}
+              {mine.length > 0 && (
+                <>
+                  <h3 className="mt-15">Hợp đồng của bạn</h3>
+                  {mine.map((c) => (
+                    <div key={c.id} className="job">
+                      <Link href={`/thang/${c.id}`}><strong>{c.student.class.name}</strong> · {showMonth(c.month)} · <span className="money">{showVnd(c.fee)}</span></Link>
+                      <span className={`badge badge-${MONTHLY_LABEL[c.status].tone}`}>{MONTHLY_LABEL[c.status].label}{c.refundDue && !c.refundedAt ? " · cần hoàn tiền" : ""}</span>
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
+          )}
           {earn.jobs.length > 0 && (
             <div className="card">
               <h2>Lượt đón có phí của bạn</h2>
@@ -126,16 +169,20 @@ export default async function EarnPage() {
                 <div className="pay-box">
                   <div className="qr" role="img" aria-label={`Mã VietQR nộp ${showVnd(earn.owed.amount)} phí nền tảng`} dangerouslySetInnerHTML={{ __html: settleSvg }} />
                   <dl className="kv">
-                    <dt>Số tiền</dt><dd className="money">{showVnd(earn.owed.amount)}</dd>
+                    <dt>Số tiền</dt><dd className="money">{showVnd(earn.toPay)}</dd>
+                    {earn.credit > 0 && <><dt>Tín dụng</dt><dd className="money">−{showVnd(earn.credit)}</dd></>}
                     <dt>Ngân hàng</dt><dd>{earn.settleQr.bank}</dd>
                     <dt>Tài khoản</dt><dd>{earn.settleQr.account}</dd>
                     <dt>Chủ TK</dt><dd>{earn.settleQr.name}</dd>
                     <dt>Nội dung</dt><dd>{earn.settleQr.note}</dd>
                   </dl>
                 </div>
-              ) : <Note kind="warn">Nền tảng chưa cấu hình tài khoản nhận phí.</Note>}
+              ) : earn.toPay === 0 ? <Note kind="ok">Tín dụng giới thiệu đủ trả {showVnd(earn.owed.amount)} phí nền tảng, không cần chuyển khoản.</Note>
+                : <Note kind="warn">Nền tảng chưa cấu hình tài khoản nhận phí.</Note>}
               <ActionForm action={settleCommissionAction} className="mt-10">
-                <SubmitButton className="btn" confirm={`Bạn đã chuyển ${showVnd(earn.owed.amount)} phí nền tảng?`}><Icon name="check" size={16} />Tôi đã nộp phí</SubmitButton>
+                <SubmitButton className="btn" confirm={earn.toPay ? `Bạn đã chuyển ${showVnd(earn.toPay)} phí nền tảng${earn.credit ? ` (đã trừ ${showVnd(earn.credit)} tín dụng)` : ""}?` : `Dùng ${showVnd(earn.credit)} tín dụng giới thiệu để nộp phí?`}>
+                  <Icon name="check" size={16} />{earn.toPay ? "Tôi đã nộp phí" : "Dùng tín dụng nộp phí"}
+                </SubmitButton>
               </ActionForm>
             </div>
           )}
@@ -148,7 +195,8 @@ export default async function EarnPage() {
               <li>Phụ huynh chuyển khoản <strong>thẳng cho bạn</strong> sau khi bé về an toàn. App không giữ tiền. Không nhận tiền trước, không đòi thêm.</li>
               <li>Thông tin của bé chỉ dùng cho lượt đón; không chụp ảnh, không chia sẻ.</li>
               <li>Vi phạm hoặc bị phản ánh: giáo viên tạm dừng tài khoản.</li>
-              <li>Lượt đón có phí không cộng điểm tương trợ.</li>
+              <li>Đón theo tháng: phụ huynh trả trọn gói đầu tháng; buổi bạn báo nghỉ hoặc khi bạn dừng sớm phải hoàn tiền trong 7 ngày.</li>
+              <li>Lượt đón có phí và đón theo tháng không cộng điểm tương trợ.</li>
               <li>Thành viên ưu đãi được giảm phí nền tảng; nhận đón cho người nhờ là thành viên thì cũng được tính mức phí thấp hơn của hai bên. <Link href="/thanh-vien">Xem các hạng</Link></li>
               <li>Thu nhập này có thể phải kê khai thuế thu nhập cá nhân theo quy định.</li>
             </ul>

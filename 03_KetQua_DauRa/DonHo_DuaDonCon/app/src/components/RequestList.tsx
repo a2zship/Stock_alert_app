@@ -5,7 +5,7 @@ import { Icon } from "./Icon";
 import { StatusBadge } from "./ui";
 
 type Row = {
-  id: string; status: string; windowStart: Date; windowEnd: Date; delegateName: string; relation: string; isAdhoc: boolean;
+  id: string; status: string; windowStart: Date; windowEnd: Date; delegateName: string; relation: string; isAdhoc: boolean; contractId?: string | null;
   student: { name: string; class: { name: string } };
 };
 
@@ -18,7 +18,10 @@ export function RequestList({ rows, show = "delegate" }: { rows: Row[]; show?: "
           <div className="list-row">
             <span className="desc">
               {show === "student" ? `Bé ${r.student.name}` : `${r.delegateName} (${r.relation})`}
-              {r.isAdhoc && <span className="badge badge-warn ml-5"><Icon name="alert" size={16} />Ngoài danh sách</span>}
+              {/* buổi theo hợp đồng tháng: cô đã duyệt người đón cho cả tháng, không phải người lạ ngoài danh sách */}
+              {r.contractId
+                ? <span className="badge badge-info ml-5"><Icon name="calendar" size={16} />Theo tháng</span>
+                : r.isAdhoc && <span className="badge badge-warn ml-5"><Icon name="alert" size={16} />Ngoài danh sách</span>}
             </span>
             <StatusBadge status={r.status as Status} />
           </div>

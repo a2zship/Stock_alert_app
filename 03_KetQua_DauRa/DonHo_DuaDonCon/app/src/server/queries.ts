@@ -9,6 +9,7 @@ import { isGuardian, isTeacherOfStudent } from "./access";
 import { appSecret, db } from "./db";
 import { sweep } from "./requests";
 import { unseal } from "./seal";
+import { isPlatformAdmin } from "./share";
 
 export type Me = Awaited<ReturnType<typeof loadMe>>;
 
@@ -16,17 +17,28 @@ async function loadMe(userId: string) {
   const user = await db.user.findUnique({
     where: { id: userId },
     include: {
-      guardianOf: { include: { student: { include: { class: true } } } },
+      guardianOf: { include: { student: { include: { class: { include: { school: { include: { ward: { include: { province: true } } } } } } } } } },
       teaches: { include: { class: { include: { school: true } } } },
+      province: true, ward: true, school: true,
+      _count: { select: { claims: { where: { status: "CHO_DUYET" } }, adminOf: true } },
     },
   });
   if (!user) return null;
   const delegateCount = await db.pickupRequest.count({ where: { delegateId: userId } });
+  // khu vực hiển thị: khu vực người dùng chọn; tài khoản do trường thêm (chưa chọn) thì lấy theo trường của con
+  const kid = user.guardianOf[0]?.student.class.school;
+  const area = user.ward
+    ? { ward: user.ward.name, province: user.province?.name ?? "", school: user.school?.name ?? user.pendingSchool ?? null, verified: user.ward.verified, own: true }
+    : kid ? { ward: kid.ward.name, province: kid.ward.province.name, school: kid.name, verified: true, own: false } : null;
   return {
     ...user,
+    area,
+    pendingClaims: user._count.claims,
     isParent: user.guardianOf.length > 0,
     isTeacher: user.teaches.length > 0,
     isDelegate: delegateCount > 0,
+    isSchoolAdmin: user._count.adminOf > 0,
+    isPlatformAdmin: isPlatformAdmin(user.phone),
   };
 }
 
@@ -47,7 +59,8 @@ export async function parentHome(userId: string) {
     db.pickupRequest.findMany({ where: { studentId: { in: studentIds }, status: { in: ["CHO_NGUOI_DON", "CHO_GIAO_VIEN", "DA_DUYET", "BI_KHOA", "DA_GIAO"] } }, include: requestInclude, orderBy: { windowStart: "asc" } }),
     db.pickupRequest.findMany({ where: { studentId: { in: studentIds }, status: { in: ["HOAN_TAT", "NGUOI_DON_TU_CHOI", "GV_TU_CHOI", "DA_HUY", "HET_HAN", "KHONG_GIAO_DUOC"] } }, include: requestInclude, orderBy: { createdAt: "desc" }, take: 10 }),
   ]);
-  return { students, active, recent };
+  // buổi theo hợp đồng tháng quản lý riêng; danh sách thường chỉ còn lần nhờ đón lẻ
+  return { students, active: active.filter((r) => !r.contractId), recent: recent.filter((r) => !r.contractId), monthly: active.filter((r) => r.contractId) };
 }
 
 export async function parentTrusted(userId: string) {
@@ -65,7 +78,11 @@ export async function parentTrusted(userId: string) {
 
 export async function delegateInbox(userId: string) {
   await sweep();
-  return db.pickupRequest.findMany({ where: { delegateId: userId }, include: requestInclude, orderBy: [{ windowStart: "desc" }], take: 30 });
+  const [rows, monthly] = await Promise.all([
+    db.pickupRequest.findMany({ where: { delegateId: userId, contractId: null }, include: requestInclude, orderBy: [{ windowStart: "desc" }], take: 30 }),
+    db.pickupRequest.findMany({ where: { delegateId: userId, contractId: { not: null }, status: { in: ["DA_DUYET", "DA_GIAO"] } }, include: requestInclude, orderBy: { windowStart: "asc" } }),
+  ]);
+  return { rows, monthly };
 }
 
 export async function teacherToday(userId: string, now = new Date()) {
@@ -75,10 +92,10 @@ export async function teacherToday(userId: string, now = new Date()) {
   const [today, waiting, pendingTrusted] = await Promise.all([
     db.pickupRequest.findMany({ where: { student: { classId: { in: classIds } }, windowStart: { gte: start, lte: end } }, include: requestInclude, orderBy: { windowStart: "asc" } }),
     // yêu cầu chờ duyệt cho các ngày tới
-    db.pickupRequest.findMany({ where: { student: { classId: { in: classIds } }, status: "CHO_GIAO_VIEN", windowStart: { gt: end } }, include: requestInclude, orderBy: { windowStart: "asc" } }),
+    db.pickupRequest.findMany({ where: { student: { classId: { in: classIds } }, status: "CHO_GIAO_VIEN", windowStart: { gt: end }, contractId: null }, include: requestInclude, orderBy: { windowStart: "asc" } }),
     db.trustedPerson.count({ where: { status: "CHO_DUYET", student: { classId: { in: classIds } } } }),
   ]);
-  return { today, waiting, pendingTrusted };
+  return { today: today.filter((r) => !r.contractId), monthly: today.filter((r) => r.contractId), waiting, pendingTrusted };
 }
 
 export async function teacherTrusted(userId: string) {

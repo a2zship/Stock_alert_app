@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Icon } from "@/components/Icon";
 import { currentUser } from "@/server/queries";
@@ -18,6 +19,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
           <li><Icon name="heart" size={16} />Phụ huynh cùng lớp giúp nhau, được ghi nhận</li>
         </ul>
         <LoginForm next={next ?? "/"} />
+        <p className="small muted mt-15 mb-0">Chưa có tài khoản? <Link href="/dang-ky">Đăng ký và chọn khu vực</Link></p>
         {process.env.DEV_INBOX === "1" && (
           <p className="small muted mt-15">
             Bản thử nghiệm chưa gửi SMS thật. Xem mã OTP ở <a href="/thu-nghiem">Hộp tin thử nghiệm</a>.

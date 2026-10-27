@@ -62,10 +62,15 @@ export function Composer({ classId, kids, today, maxDate, places, center }: {
           <div className="field">
             <label htmlFor="ask-fee">Thù lao tối thiểu cho người đón (không bắt buộc)</label>
             <input id="ask-fee" name="fee" type="number" inputMode="numeric" min={20000} max={300000} step={1000} placeholder="Ví dụ: 50000" />
-            <p className="hint">Có thù lao thì phụ huynh <strong>cả trường</strong> (đã được cô duyệt làm người đón có phí) thấy và nhận được, chỉ thấy lớp, giờ, phường/xã. Đây là mức tối thiểu: khi bé về an toàn bạn tự chuyển từ mức này trở lên kèm lời cảm ơn (có thể thoả thuận thêm với người nhận). Để trống = nhờ tương trợ trong lớp.</p>
+            <p className="hint">Có thù lao thì người đón có phí đã được cô duyệt cũng nhận được: trong lớp ngay, cả trường khi lời nhờ lên vòng trường (chỉ thấy lớp, giờ, phường/xã). Đây là mức tối thiểu: khi bé về an toàn bạn tự chuyển từ mức này trở lên kèm lời cảm ơn (có thể thoả thuận thêm với người nhận). Để trống = nhờ tương trợ trong lớp.</p>
           </div>
           <SubmitButton className="btn btn-accent btn-block"><Icon name="hand" />Đăng lời nhờ vào nhóm</SubmitButton>
-          <p className="hint">Người nhận giúp vẫn phải nhận lời, được cô duyệt và kiểm mã tại cổng như mọi lần đón hộ. Số điện thoại không hiện trong nhóm.</p>
+          <ol className="hint round-steps">
+            <li><strong>Nhóm lớp trước:</strong> nhắn thẳng tới từng phụ huynh cùng lớp.</li>
+            <li><strong>Cả trường:</strong> chưa ai nhận sau 5–30 phút (càng gần giờ đón càng nhanh), app gửi tiếp tới phụ huynh lớp khác.</li>
+            <li><strong>Khu vực sống:</strong> vẫn chưa ai nhận thì gửi tới phụ huynh sống cùng phường/xã với bạn (lời nhờ có thù lao dừng ở trường).</li>
+          </ol>
+          <p className="hint">Ngoài lớp không ai thấy tên bé và địa chỉ. Người nhận giúp vẫn phải nhận lời, được cô duyệt và kiểm mã tại cổng như mọi lần đón hộ. Số điện thoại không hiện trong nhóm.</p>
         </ActionForm>
       )}
     </div>

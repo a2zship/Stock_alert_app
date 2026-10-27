@@ -3,6 +3,7 @@
 // Nền tảng trích % thu nhập người đón; người đón tự nộp định kỳ, nợ quá hạn thì tạm không nhận việc có phí mới.
 import { jobRate, rateOf } from "@/domain/membership";
 import { commissionOf, parsePay } from "@/domain/money";
+import { REFUND_DAYS } from "@/domain/monthly";
 import { parseDataUrl } from "@/domain/photo";
 import { addDays, showWindow, vnDateTime, vnToday } from "@/domain/time";
 import { bankName, BANKS, transferNote, vietQr } from "@/domain/vietqr";
@@ -10,6 +11,7 @@ import { isGuardian } from "./access";
 import { AppError, db, platformAccount, platformRate } from "./db";
 import { tierOf, tiersOf } from "./membership";
 import { guardiansOf, notify } from "./notify";
+import { creditBalance, lockUser, recordSettlement, useCredit } from "./share";
 
 // ─────────────────────────── Đăng ký & duyệt ───────────────────────────
 
@@ -92,12 +94,18 @@ export async function owedOf(userId: string, now = new Date()) {
     where: { delegateId: userId, fee: { gt: 0 }, paidAt: { not: null }, settlementId: null },
     select: { id: true, commission: true, paidAt: true },
   });
-  const amount = rows.reduce((s, r) => s + (r.commission ?? 0), 0);
-  const oldest = rows.reduce<Date | null>((m, r) => (!m || r.paidAt! < m ? r.paidAt! : m), null);
+  // hợp đồng đón theo tháng đã trả trọn gói cũng tính phí nền tảng
+  const months = await db.monthlyContract.findMany({
+    where: { helperId: userId, paidAt: { not: null }, settlementId: null },
+    select: { id: true, commission: true, paidAt: true },
+  });
+  const all = [...rows, ...months];
+  const amount = all.reduce((s, r) => s + (r.commission ?? 0), 0);
+  const oldest = all.reduce<Date | null>((m, r) => (!m || r.paidAt! < m ? r.paidAt! : m), null);
   // hạn mức nợ theo hạng thành viên
   const tier = await tierOf(userId, now);
   const overdue = amount >= tier.owedLimit && !!oldest && now.getTime() - oldest.getTime() > tier.owedDays * 86_400_000;
-  return { amount, ids: rows.map((r) => r.id), overdue, limit: tier.owedLimit, days: tier.owedDays };
+  return { amount, ids: rows.map((r) => r.id), monthIds: months.map((m) => m.id), overdue, limit: tier.owedLimit, days: tier.owedDays };
 }
 
 /** Người này nhận được lời nhờ có phí của lớp/trường này không? Ném lỗi kèm lý do dễ hiểu. */
@@ -108,7 +116,15 @@ export async function requirePaidHelper(userId: string, classId: string, now = n
   if (prof.schoolId !== cls.schoolId) throw new AppError("Chỉ phụ huynh cùng trường mới nhận đón có phí.");
   const owed = await owedOf(userId, now);
   if (owed.overdue) throw new AppError(`Bạn còn nợ phí nền tảng quá ${owed.days} ngày. Nộp phí ở mục Kiếm thêm để nhận việc tiếp.`);
+  if (await refundOverdue(userId, now)) throw new AppError(`Bạn chưa hoàn tiền hợp đồng tháng quá ${REFUND_DAYS} ngày. Hoàn tiền cho phụ huynh rồi bấm "Đã hoàn tiền" để nhận việc tiếp.`);
   return prof;
+}
+
+/** Người đón còn khoản hoàn tiền hợp đồng tháng quá hạn → tạm không nhận việc có phí mới. */
+export async function refundOverdue(userId: string, now = new Date()) {
+  return (await db.monthlyContract.count({
+    where: { helperId: userId, refundDue: { gt: 0 }, refundedAt: null, endedAt: { lt: new Date(now.getTime() - REFUND_DAYS * 86_400_000) } },
+  })) > 0;
 }
 
 // ─────────────────────────── Bảng việc trong trường ───────────────────────────
@@ -120,7 +136,11 @@ export async function paidBoard(userId: string, now = new Date()) {
   const today = vnToday(now);
   const myKids = new Set((await db.guardian.findMany({ where: { userId }, select: { studentId: true } })).map((g) => g.studentId));
   const posts = await db.chatPost.findMany({
-    where: { kind: "NHO_DON", status: "MO", fee: { gt: 0 }, date: { gte: today, lte: addDays(today, 7) }, class: { schoolId: prof.schoolId }, authorId: { not: userId } },
+    where: {
+      kind: "NHO_DON", status: "MO", fee: { gt: 0 }, date: { gte: today, lte: addDays(today, 7) }, class: { schoolId: prof.schoolId }, authorId: { not: userId },
+      // vòng LỚP: chỉ phụ huynh cùng lớp thấy; lên vòng TRƯỜNG mới hiện trên bảng việc cả trường
+      OR: [{ scope: { not: "LOP" } }, { class: { students: { some: { guardians: { some: { userId } } } } } }],
+    },
     include: { class: true, offers: { select: { userId: true } } },
     orderBy: [{ date: "asc" }, { createdAt: "asc" }],
   });
@@ -223,16 +243,28 @@ export async function earnings(userId: string, now = new Date()) {
   const got = (j: { fee: number | null; paidAmount: number | null }) => j.paidAmount ?? j.fee!;
   const inMonth = done.filter((j) => j.closedAt && vnToday(j.closedAt).slice(0, 7) === month);
   const owed = await owedOf(userId, now);
+  // trọn gói tháng: tính vào tháng nhận tiền, trừ phần phải hoàn
+  const monthly = await db.monthlyContract.findMany({ where: { helperId: userId, paidAt: { not: null } }, select: { paidAt: true, paidAmount: true, refundDue: true, commission: true } });
+  const mIn = monthly.filter((c) => vnToday(c.paidAt!).slice(0, 7) === month);
+  const mGross = mIn.reduce((s, c) => s + c.paidAmount! - (c.refundDue ?? 0), 0);
   const acct = platformAccount();
   const settleNote = `DONHO PHI ${userId.slice(-6)}`;
+  // tín dụng giới thiệu trừ vào phí nền tảng trước, phần còn lại mới chuyển khoản
+  const credit = Math.min((await creditBalance(userId, now)).available, owed.amount);
+  const toPay = owed.amount - credit;
   return {
     rate: rateOf(await tierOf(userId, now), platformRate()),
     tier: await tierOf(userId, now),
-    month: { jobs: inMonth.length, gross: inMonth.reduce((s, j) => s + got(j), 0), net: inMonth.reduce((s, j) => s + got(j) - (j.commission ?? 0), 0) },
+    month: {
+      jobs: inMonth.length, contracts: mIn.length,
+      gross: inMonth.reduce((s, j) => s + got(j), 0) + mGross,
+      net: inMonth.reduce((s, j) => s + got(j) - (j.commission ?? 0), 0) + mGross - mIn.reduce((s, c) => s + (c.commission ?? 0), 0),
+    },
     waitingPay: done.filter((j) => !j.paidAt).reduce((s, j) => s + j.fee!, 0),
     owed,
-    settleQr: acct && owed.amount > 0 ? { bank: bankName(acct.bin), account: acct.account, name: acct.name, note: transferNote(settleNote),
-      qr: vietQr({ bin: acct.bin, account: acct.account, amount: owed.amount, note: settleNote }) } : null,
+    credit, toPay,
+    settleQr: acct && toPay > 0 ? { bank: bankName(acct.bin), account: acct.account, name: acct.name, note: transferNote(settleNote),
+      qr: vietQr({ bin: acct.bin, account: acct.account, amount: toPay, note: settleNote }) } : null,
     platformReady: !!acct,
     jobs: jobs.map((j) => ({ id: j.id, status: j.status, className: j.student.class.name, when: showWindow(j.windowStart, j.windowEnd),
       fee: j.fee!, paid: j.paidAmount, commission: j.commission ?? 0, paidAt: j.paidAt, receivedAt: j.receivedAt, settled: !!j.settlementId })),
@@ -244,9 +276,18 @@ export async function settleCommission(userId: string, now = new Date()) {
   const owed = await owedOf(userId, now);
   if (owed.amount <= 0) throw new AppError("Bạn không còn nợ phí nền tảng.");
   await db.$transaction(async (tx) => {
+    await lockUser(tx, userId);
     const st = await tx.settlement.create({ data: { userId, amount: owed.amount, createdAt: now } });
     const res = await tx.pickupRequest.updateMany({ where: { id: { in: owed.ids }, settlementId: null }, data: { settlementId: st.id } });
-    if (res.count !== owed.ids.length) throw new AppError("Số liệu vừa thay đổi, tải lại trang rồi thử lại.");
-    await tx.auditLog.create({ data: { actorId: userId, action: "NOP_PHI_NEN_TANG", target: st.id, meta: { amount: owed.amount } } });
+    const resM = await tx.monthlyContract.updateMany({ where: { id: { in: owed.monthIds }, settlementId: null }, data: { settlementId: st.id } });
+    if (res.count !== owed.ids.length || resM.count !== owed.monthIds.length) throw new AppError("Số liệu vừa thay đổi, tải lại trang rồi thử lại.");
+    const credit = await useCredit(tx, userId, owed.amount, "PHI_NEN_TANG", st.id, now);
+    if (credit) await tx.settlement.update({ where: { id: st.id }, data: { creditUsed: credit } });
+    // phí mỗi lượt/hợp đồng tính cho lớp của bé được đón → trường và cô lớp đó
+    const reqs = await tx.pickupRequest.findMany({ where: { settlementId: st.id }, select: { commission: true, student: { select: { classId: true } } } });
+    const mons = await tx.monthlyContract.findMany({ where: { settlementId: st.id }, select: { commission: true, student: { select: { classId: true } } } });
+    const items = [...reqs, ...mons].map((r) => ({ classId: r.student.classId, commission: r.commission ?? 0 }));
+    await recordSettlement(tx, st.id, userId, items, owed.amount - credit, now);
+    await tx.auditLog.create({ data: { actorId: userId, action: "NOP_PHI_NEN_TANG", target: st.id, meta: { amount: owed.amount, credit } } });
   });
 }

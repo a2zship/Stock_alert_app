@@ -135,7 +135,7 @@ Sếp chọn: người nhận tiền là **phụ huynh cùng trường**; thanh 
 
 **Luồng một lượt có phí:**
 1. Người nhờ đăng lời nhờ trong nhóm lớp, điền **thù lao tối thiểu** (20.000–300.000đ, tròn nghìn) — để trống là nhờ tương trợ như cũ.
-2. Người đón có phí đã duyệt trong **cả trường** được báo; bảng việc (`/kiem-tien`) chỉ hiện lớp, giờ, phường/xã, mức tối thiểu, số tiền thực nhận dự kiến — **không hiện tên bé**.
+2. Người đón có phí đã duyệt **cùng lớp** thấy ngay; người đón có phí lớp khác trong trường chỉ được báo khi lời nhờ lên **vòng trường** (mục 3.12). Bảng việc (`/kiem-tien`) chỉ hiện lớp, giờ, phường/xã, mức tối thiểu, số tiền thực nhận dự kiến — **không hiện tên bé**.
 3. Người nhờ chọn một người → tạo yêu cầu "ngoài danh sách" như cũ: người đón nhận lời → **cô gọi xác minh với phụ huynh** rồi duyệt → kiểm mã/ảnh/CCCD tại cổng → phụ huynh xác nhận bé về an toàn. **Không bỏ bước an toàn nào.**
 4. Bé về an toàn → trang yêu cầu hiện thẻ "Gửi lời cảm ơn": phụ huynh để nguyên mức tối thiểu hoặc **tự tăng số tiền** (không thấp hơn mức đã hứa, tối đa 1.000.000đ để tránh gõ thừa số 0), bấm Tạo mã → mã VietQR theo số đó, nội dung "DONHO xxxxxx CAM ON", kèm lời cảm ơn tuỳ chọn → "Tôi đã chuyển khoản".
 5. Người đón bấm "Đã nhận tiền" (nếu phụ huynh quên báo thì bấm này cũng tính là đã trả); chưa nhận được có thể "Nhắc phụ huynh" tối đa 1 lần/24 giờ.
@@ -163,6 +163,104 @@ Sếp chọn: áp cho **cả người nhờ đón và người nhận đón**; *
 - **Luôn miễn phí:** nhờ đón (tin cậy/ngoài danh sách), cô duyệt, QR/PIN, kiểm ảnh + CCCD, ảnh bàn giao, bản đồ, điểm trả, nhóm lớp, điểm tương trợ, đăng ký và nhận đón có phí.
 - **Không mua được:** bỏ qua bước an toàn nào; hạng người đón **không hiện** cho phụ huynh nhờ (tiền không phải lý do để tin một người đón); vượt hạng tương trợ trong nhóm lớp.
 - **[CẦN XÁC MINH]:** chính sách hoàn tiền, xuất hoá đơn cho phí thành viên, thuế; điều khoản dịch vụ.
+
+### 3.10. Đón theo tháng (bổ sung 27/10)
+
+Một người đón có phí **cố định** cho các buổi trong tháng. Sếp chọn: ưu tiên người đón hạng **Kim cương** khi phụ huynh không chỉ định; tiền **trọn gói đầu tháng**; cô **duyệt hợp đồng một lần**, cổng vẫn kiểm mỗi buổi.
+
+**Luồng:**
+1. Phụ huynh tạo hợp đồng: bé, tháng (tháng này từ ngày mai, hoặc tháng sau), các thứ trong tuần (T2–T7), thù lao trọn gói (tối thiểu 20.000đ × số buổi), điểm trả cố định (chọn từ điểm hay dùng), lời nhắn.
+2. Chọn người đón, một trong hai cách:
+   - **Chỉ định**: nhập số điện thoại một người đón có phí **đã được duyệt cùng trường**. Người đó nhận lời hoặc từ chối.
+   - **Mở cho cả trường**: hợp đồng lên bảng việc (mục Kiếm thêm), không lộ tên bé. **24 giờ đầu chỉ người đón hạng Kim cương nhận được**; app báo trước cho người Kim cương. Sau 24 giờ mọi người đón đã duyệt đều nhận được. Phụ huynh chọn một người trong danh sách.
+3. Cô lớp của bé **duyệt một lần** cho cả tháng: xem ảnh, CCCD, tình trạng duyệt của người đón; **bắt buộc tích "đã gọi điện xác minh phụ huynh"**.
+4. Phụ huynh chuyển **trọn gói** bằng VietQR **thẳng cho người đón**, bấm "Tôi đã chuyển khoản" (hoặc người đón bấm "Đã nhận tiền"). Chưa trả thì app chưa tạo mã đón.
+5. **Mỗi buổi** app tự tạo một yêu cầu đón hộ ở trạng thái **Đã duyệt**, có **mã QR/PIN mới**; người đón nhận tin nhắn. Tại cổng cô vẫn quét mã, đối chiếu khuôn mặt, CCCD bản gốc, bé nhận ra người đón; phụ huynh vẫn bấm "Con đã về an toàn". Buổi không tạo nếu phụ huynh đã tự nhờ người khác cho ca đó, hoặc người đón bị tạm dừng.
+6. Hết tháng hợp đồng tự kết thúc.
+
+**Huỷ, nghỉ, dừng sớm, hoàn tiền:**
+
+| Tình huống | Ai làm | Hoàn tiền cho phụ huynh |
+|---|---|---|
+| Phụ huynh huỷ một buổi (bé nghỉ học…) | Phụ huynh | Không — người đón đã giữ lịch **[GIẢ ĐỊNH]** |
+| Người đón báo nghỉ một buổi | Người đón | Có — buổi đó; phụ huynh + cô được báo ngay để nhờ người khác, mã buổi đó (nếu đã tạo) bị huỷ |
+| Người đón dừng hợp đồng | Người đón | Mọi buổi còn lại, kể cả hôm nay (mã hôm nay bị huỷ) |
+| Phụ huynh dừng hợp đồng | Phụ huynh | Các buổi còn lại **trừ 2 buổi báo trước [GIẢ ĐỊNH]**; buổi hôm nay vẫn đón |
+
+- Số hoàn = trọn gói × số buổi được hoàn ÷ tổng số buổi, làm tròn nghìn. App **chỉ ghi sổ**: người đón tự chuyển lại, một trong hai bên bấm "Đã hoàn tiền".
+- Người đón chưa hoàn tiền **quá 7 ngày** → tạm không nhận việc có phí mới (cả lượt lẻ và hợp đồng tháng).
+- Phí nền tảng tính trên trọn gói theo hạng hai bên (mức thấp hơn), chốt lúc trả; dừng sớm thì tính lại trên số thực giữ (trọn gói − hoàn), nếu chưa nộp phí. Đón theo tháng **không cộng điểm tương trợ**.
+
+**Rủi ro — mâu thuẫn với nguyên tắc "không trả trước":** đón có phí từng lượt trả **sau** khi bé về; đón theo tháng trả **trước** theo lựa chọn của Sếp. App không giữ tiền nên **không bảo đảm hoàn tiền**: nếu người đón bỏ ngang và không trả lại, phụ huynh chỉ có biện pháp app chặn người đó nhận việc + báo nhà trường. Cách giảm rủi ro nên cân nhắc khi thí điểm: cho trả theo nửa tháng; giới hạn trọn gói tối đa; chỉ cho người đón có lịch sử tốt nhận hợp đồng tháng. **[CẦN XÁC MINH với luật sư]**: hợp đồng dịch vụ giữa hai phụ huynh, trách nhiệm hoàn tiền, thuế thu nhập người đón.
+
+**Quản lý riêng (bổ sung 27/10):** buổi sinh từ hợp đồng tháng **không lẫn** vào danh sách nhờ đón lẻ của phụ huynh, cô và người đón. Mỗi trang chủ có thẻ riêng "Đón theo tháng hôm nay"; cổng trường có nhóm "Đón theo tháng" riêng nhưng vẫn kiểm mã/PIN, ảnh, CCCD như mọi buổi. Trang `/thang` có bộ lọc: Tất cả · Buổi hôm nay · Đang chạy · Đang chờ · Đã xong. Mỗi buổi gắn nhãn "Theo tháng" thay cho nhãn "Ngoài danh sách". Hai việc an toàn vẫn gộp chung: "Người đón đã tới cổng" (trang cô) và "Bé đã được giao — chờ bạn xác nhận" (trang phụ huynh). Lời nhờ đón lẻ giữ nguyên mọi quy tắc cũ; nếu trùng ca đã có buổi theo tháng thì báo rõ cần huỷ buổi đó ở trang hợp đồng trước.
+
+**Chưa làm (đón theo tháng):** đặt lịch chạy tự động hằng ngày (bản mẫu tạo buổi khi có người mở app); gia hạn sang tháng sau một chạm; đổi người đón giữa tháng (hiện phải dừng và tạo hợp đồng mới).
+
+### 3.11. Đăng ký tài khoản theo khu vực và trường (bổ sung 27/10)
+
+Sếp chọn: phụ huynh **tự đăng ký, cô xác nhận con**; địa bàn **chọn từ danh sách, thiếu thì gõ tay**.
+
+1. Trang `/dang-ky`: họ tên, số điện thoại, **Tỉnh/Thành → Phường/Xã/Đặc khu → Trường → Lớp**, họ tên bé, quan hệ (Bố/Mẹ/Ông/Bà/Người giám hộ). Thiếu phường/xã thì gõ tay (phải bắt đầu bằng "Phường/Xã/Đặc khu"), lưu dạng **chưa xác minh** và chỉ hiện cho người gõ; thiếu trường thì ghi tên trường để quản trị thêm sau.
+2. Nhận mã 6 số qua tin nhắn → tạo tài khoản + **yêu cầu xác nhận con** (chờ cô). Số đã có tài khoản thì chỉ đăng nhập. Trang đăng nhập không tiết lộ số nào đã đăng ký.
+3. Cô lớp đó vào **"Xác nhận phụ huynh mới"** (`/giao-vien/phu-huynh-moi`): gọi điện cho phụ huynh, chọn đúng bé trong lớp (hoặc thêm bé mới), **bắt buộc tích "đã gọi điện xác minh"** rồi duyệt; từ chối phải ghi lý do. Duyệt xong mới thành phụ huynh của bé, vào nhóm lớp, nhờ đón được.
+4. Đăng nhập lại thì app hiện đúng khu vực của mình (thanh khu vực trên đầu trang); trang `/khu-vuc` để đổi nơi sống, xin xác nhận thêm bé, xem trường gần mình. Mỗi người tối đa 5 yêu cầu đang chờ.
+
+Nơi sống của phụ huynh dùng cho vòng "khu vực sống" ở mục 3.12. **[CẦN XÁC MINH]:** danh sách phường/xã chính thức đủ 34 tỉnh; màn quản trị duyệt phường/xã và trường gõ tay.
+
+### 3.12. Quy tắc phát lời nhờ đón hộ: lớp → trường → khu vực sống (bổ sung 27/10)
+
+Lời nhờ đón hộ đi **từ gần tới xa**, chỉ mở rộng khi **chưa ai nhận**:
+
+| Vòng | Ai được báo và nhận | Thấy gì |
+|---|---|---|
+| 1. Nhóm lớp | Nhắn **thẳng tới từng phụ huynh cùng lớp** + cô lớp (ngay khi đăng) | Đủ thông tin như mục 3.6 |
+| 2. Cả trường | Phụ huynh có con ở lớp khác cùng trường (+ người đón có phí đã duyệt của trường nếu lời nhờ có thù lao) | Lớp, giờ, phường/xã trả bé, mức thù lao — **không tên bé, không số nhà** |
+| 3. Khu vực sống | Phụ huynh (đã được cô xác nhận con, trường khác) **sống cùng phường/xã** với người nhờ | Như vòng 2 + tên trường |
+
+- **Thời gian chờ mỗi vòng [GIẢ ĐỊNH]:** còn ≥6 giờ tới giờ đón → 30 phút; 2–6 giờ → 15 phút; dưới 2 giờ → 5 phút.
+- Đã có người bấm "Tôi đón giúp được" thì **dừng mở rộng**; quá giờ đón thì thôi.
+- Người nhờ có nút **"Gửi … ngay"** để mở rộng sớm, mỗi lần một vòng, đúng thứ tự.
+- **Lời nhờ có thù lao dừng ở vòng trường** (người đón có phí được duyệt theo trường).
+- Người nhờ chưa chọn khu vực sống thì lấy phường/xã của trường; lời nhờ đăng trước khi có quy tắc này không có vòng khu vực.
+- Người vòng ngoài thấy ở mục **"Lời nhờ quanh bạn"** trong trang Nhóm lớp. Khi được chọn, yêu cầu vẫn là "ngoài danh sách" (quan hệ ghi "Phụ huynh cùng trường" / "cùng khu vực sống"): người đón tự chụp ảnh + khai CCCD, cô gọi xác minh rồi duyệt, cổng vẫn kiểm. **Không bỏ bước an toàn nào.**
+- Mỗi lần chuyển vòng ghi nhật ký `MO_RONG_LOI_NHO`, báo người nhờ.
+
+**Giới hạn bản mẫu:** việc mở rộng chạy khi có người mở app (chưa có lịch chạy nền), nên trong giờ vắng có thể chậm hơn thời gian chờ. Trước khi chạy thật cần một tác vụ định kỳ mỗi phút. Phần "lời nhắn" do người nhờ tự gõ vẫn hiện ở vòng ngoài — nên nhắc phụ huynh không ghi tên bé, địa chỉ vào đó.
+
+### 3.13. Giới thiệu bạn bè và chia sẻ doanh thu với nhà trường, giáo viên (bổ sung 28/10)
+
+Sếp chọn: người giới thiệu nhận **tín dụng 20% trong 12 tháng**; phần của giáo viên **chuyển trực tiếp cho cô**; giáo viên **được làm người giới thiệu như mọi người dùng**.
+
+**Nguồn chia — chỉ tiền mặt nền tảng thực thu:** phí thành viên và phí nền tảng người đón nộp (lượt có phí + đón theo tháng). Phần trả bằng tín dụng giới thiệu **không** chia (tránh vòng tín dụng sinh tín dụng). Ghi sổ ngay lúc thu, trong cùng giao dịch.
+
+| Ai | Tỉ lệ **[GIẢ ĐỊNH]** | Tính trên | Nhận dạng gì |
+|---|---|---|---|
+| Người giới thiệu | 20% | Tiền nền tảng thu từ người được giới thiệu, 12 tháng kể từ ngày đăng ký | Tín dụng trừ phí thành viên / phí nền tảng; không rút tiền mặt, không chuyển nhượng |
+| Nhà trường | 10% | Doanh thu phát sinh ở các lớp của trường | Chuyển khoản hằng tháng vào tài khoản trường |
+| Giáo viên lớp | 5% (lớp nhiều cô thì chia đều) | Doanh thu phát sinh ở lớp | Chuyển khoản hằng tháng vào tài khoản đứng tên cô |
+
+Nền tảng giữ lại 65–85% tuỳ có người giới thiệu hay không.
+
+**Doanh thu tính cho lớp nào:** phí thành viên → lớp có con của người mua (nhiều con ở nhiều lớp thì chia đều); phí nền tảng của một lượt đón → **lớp của bé được đón** (không phải lớp con người đón).
+
+**Giới thiệu:**
+- Mỗi người có mã 6 ký tự + liên kết `/dang-ky?ma=…` (trang `/gioi-thieu`). Nhập mã lúc đăng ký, hoặc bổ sung trong **7 ngày đầu**.
+- Một người một người giới thiệu; không tự giới thiệu; không giới thiệu chéo hai chiều.
+- Tín dụng dùng được sau **7 ngày** (để đối soát). App tự trừ khi mua gói thành viên và khi nộp phí nền tảng; đủ thì không cần chuyển khoản.
+- Gói thành viên bị huỷ khi đối soát → tín dụng sinh ra từ nó mất, tín dụng đã dùng cho nó được trả lại.
+
+**Nhà trường và giáo viên** (trang `/chia-se`):
+- Phần chia **không tính theo lượt cô duyệt**: duyệt hay từ chối không làm tăng hay giảm. Cô vẫn bắt buộc gọi xác minh, kiểm tại cổng như mọi lần.
+- Ban giám hiệu **tắt được phần của giáo viên** → phần đó gộp về quỹ trường (áp từ lúc đổi, phần đã phát sinh giữ nguyên). Lớp chưa có cô thì phần đó cũng vào trường.
+- Cô khai tài khoản **đứng tên chính mình**; trường khai tài khoản của trường.
+- Tạm tính trong tháng; **từ ngày 8 tháng sau** quản trị nền tảng (`ADMIN_PHONES`) thấy khoản đến hạn ở `/quan-tri/chia-se` kèm VietQR, chuyển khoản rồi bấm "Đã chuyển" → người nhận được báo.
+
+**Rủi ro — xung đột lợi ích (Sếp chọn trả trực tiếp cho cô):** cô là người duyệt người đón. Dù phần của cô không theo lượt duyệt, lớp càng nhiều lượt đón có phí thì cô càng có thêm thu nhập — động cơ gián tiếp để dễ dãi. Chốt giảm rủi ro đã làm: không tính theo lượt duyệt; bước gọi xác minh vẫn bắt buộc; nhà trường tắt được. Nên cân nhắc thêm khi thí điểm: trần tối đa mỗi cô mỗi tháng; nhà trường xem nhật ký duyệt; tạm giữ phần của cô nếu có sự cố an toàn.
+
+**[CẦN XÁC MINH]:** (a) giáo viên trường **công lập** nhận khoản tiền từ doanh nghiệp gắn với học sinh của lớp mình có vi phạm quy định đạo đức nhà giáo / phòng chống tham nhũng không — hỏi phòng giáo dục và luật sư trước khi bật; (b) khấu trừ thuế TNCN khi trả cho giáo viên, chứng từ chi; (c) hợp đồng/thoả thuận chia sẻ với nhà trường; (d) tín dụng giới thiệu có tính là khuyến mại phải đăng ký không.
+
+**Chưa làm:** màn đối soát sao kê (huỷ gói không thấy tiền — hiện chỉ đổi trạng thái trong DB); trần phần chia mỗi cô; báo cáo chi tiết từng khoản cho trường.
 
 ## 4. Quy mô 34 tỉnh thành
 
