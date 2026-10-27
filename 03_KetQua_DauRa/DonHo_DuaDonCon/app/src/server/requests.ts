@@ -77,6 +77,8 @@ export type CreateInput = {
   relation?: string;
   reason?: string;
   drop?: DropInput; // điểm trả bé lần này — không bắt buộc
+  /** Đón hộ có phí (chỉ tạo từ nhóm lớp): thù lao + hồ sơ người đón có phí đã được duyệt (ảnh, CCCD dùng lại). */
+  paid?: { fee: number; commission: number; cccdLast4: string; photoId: string };
 };
 
 export async function createRequest(parentId: string, input: CreateInput, now = new Date()): Promise<string> {
@@ -106,7 +108,7 @@ export async function createRequest(parentId: string, input: CreateInput, now = 
     if (!phone) throw new AppError("Số điện thoại người đón chưa đúng.");
     if (name.length < 2) throw new AppError("Nhập họ tên người đón.");
     if (!relation) throw new AppError("Nhập quan hệ với trẻ (ví dụ: Cô ruột, Hàng xóm).");
-    delegate = { name, phone, relation };
+    delegate = { name, phone, relation, cccdLast4: input.paid?.cccdLast4, photoId: input.paid?.photoId };
   }
 
   const requester = await db.user.findUniqueOrThrow({ where: { id: parentId } });
@@ -134,6 +136,7 @@ export async function createRequest(parentId: string, input: CreateInput, now = 
         isAdhoc: input.mode === "adhoc", delegateName: delegate.name, delegatePhone: delegate.phone, relation: delegate.relation,
         cccdLast4: delegate.cccdLast4, delegatePhotoId: delegate.photoId, reason: (input.reason ?? "").trim().slice(0, 300),
         windowStart, windowEnd,
+        ...(input.paid && { fee: input.paid.fee, commission: input.paid.commission }),
         ...(drop && { dropLabel: drop.label, dropAddress: drop.address, dropWard: drop.ward, dropLat: drop.lat, dropLng: drop.lng }),
       },
     });
@@ -191,7 +194,8 @@ export async function delegateRespond(
       return;
     }
     const data: Prisma.PickupRequestUpdateManyMutationInput = {};
-    if (r.isAdhoc) {
+    // người đón có phí đã có ảnh + CCCD từ hồ sơ được cô duyệt → không phải khai lại
+    if (r.isAdhoc && !(r.cccdLast4 && r.delegatePhotoId)) {
       if (!/^\d{4}$/.test(extra.cccdLast4 ?? "")) throw new AppError("Nhập đúng 4 số cuối CCCD của bạn.");
       if (!extra.photo) throw new AppError("Cần chụp ảnh chân dung để giáo viên nhận diện bạn.");
       data.cccdLast4 = extra.cccdLast4;

@@ -1,10 +1,10 @@
-// Lịch sử đón hộ trọn vẹn của một người → dữ liệu cho computeReward (domain/reward.ts).
+// Lịch sử đón hộ trọn vẹn (tự nguyện, không thù lao) của một người → dữ liệu cho computeReward (domain/reward.ts).
 import { computeReward, type Pickup } from "@/domain/reward";
 import { db } from "./db";
 
 export async function rewardOf(userId: string): Promise<Pickup[]> {
   const done = await db.pickupRequest.findMany({
-    where: { delegateId: userId, status: "HOAN_TAT" },
+    where: { delegateId: userId, status: "HOAN_TAT", fee: null }, // đón có phí không tính điểm tương trợ
     select: { closedAt: true, createdAt: true, thanks: true, events: { where: { action: { in: ["TAO", "NGUOI_DON_NHAN"] } }, select: { action: true, at: true } } },
   });
   return done.map((r) => {

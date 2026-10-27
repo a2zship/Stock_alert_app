@@ -3,12 +3,14 @@ import { redirect } from "next/navigation";
 import { Icon } from "@/components/Icon";
 import { RequestList } from "@/components/RequestList";
 import { Empty, Hero, Note } from "@/components/ui";
+import { helpersToReview } from "@/server/earn";
 import { currentUser, teacherToday } from "@/server/queries";
 
 export default async function TeacherHome() {
   const me = await currentUser();
   if (!me?.isTeacher) redirect("/");
   const { today, waiting, pendingTrusted } = await teacherToday(me.id);
+  const pendingHelpers = (await helpersToReview(me.id)).filter((h) => h.status === "CHO_DUYET").length;
   const toReview = today.filter((r) => r.status === "CHO_GIAO_VIEN");
   const ready = today.filter((r) => r.status === "DA_DUYET");
   const others = today.filter((r) => !toReview.includes(r) && !ready.includes(r));
@@ -28,6 +30,9 @@ export default async function TeacherHome() {
       )}
       {pendingTrusted > 0 && (
         <Note kind="warn">Có {pendingTrusted} người tin cậy đang chờ cô/thầy duyệt.<div className="mt-10"><Link href="/giao-vien/nguoi-tin-cay" className="btn btn-plain btn-sm">Xem và duyệt</Link></div></Note>
+      )}
+      {pendingHelpers > 0 && (
+        <Note kind="warn">Có {pendingHelpers} phụ huynh đăng ký làm người đón có phí đang chờ duyệt.<div className="mt-10"><Link href="/giao-vien/nguoi-don-co-phi" className="btn btn-plain btn-sm">Xem và duyệt</Link></div></Note>
       )}
       <div className="card">
         <h2>Cần duyệt <span className="count">{toReview.length + waiting.length}</span></h2>

@@ -76,6 +76,11 @@ export default async function ParentHome() {
           <strong>Hộp tin</strong>
           <span className="small">Thông báo từ trường và người đón</span>
         </Link>
+        <Link href="/kiem-tien" className="quick warm">
+          <span className="ic"><Icon name="wallet" /></span>
+          <strong>Kiếm thêm</strong>
+          <span className="small">Đón con giúp phụ huynh cùng trường, nhận thù lao</span>
+        </Link>
       </div>
 
       <h2 className="section-title"><Icon name="smile" />Con của tôi</h2>

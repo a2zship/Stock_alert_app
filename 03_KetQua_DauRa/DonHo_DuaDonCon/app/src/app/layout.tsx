@@ -35,6 +35,7 @@ function navFor(me: NonNullable<Me>, unread: number): (NavItem & { spare?: boole
     items.push({ href: "/giao-vien", label: "Hôm nay của lớp", short: "Hôm nay", icon: "school" });
     items.push({ href: "/giao-vien/giao-tre", label: "Giao trẻ tại cổng", short: "Giao trẻ", icon: "qr" });
     items.push({ href: "/giao-vien/nguoi-tin-cay", label: "Duyệt người tin cậy", short: "Duyệt", icon: "userCheck", spare: me.isParent });
+    items.push({ href: "/giao-vien/nguoi-don-co-phi", label: "Duyệt người đón có phí", short: "Có phí", icon: "banknote", spare: true });
   }
   if (me.isParent) {
     items.push({ href: "/phu-huynh", label: "Con của tôi", short: "Con", icon: "home" });
@@ -42,6 +43,7 @@ function navFor(me: NonNullable<Me>, unread: number): (NavItem & { spare?: boole
   }
   if (me.isParent || me.isTeacher) items.push({ href: "/nhom", label: "Nhóm lớp", short: "Nhóm lớp", icon: "message" });
   if (me.isParent || me.isDelegate) items.push({ href: "/nguoi-don", label: "Giúp đón & tương trợ", short: "Giúp đón", icon: "heart" });
+  if (me.isParent) items.push({ href: "/kiem-tien", label: "Kiếm thêm khi đón hộ", short: "Kiếm thêm", icon: "wallet", spare: true });
   if (me.isParent) items.push({ href: "/nguoi-tin-cay", label: "Người tin cậy", short: "Tin cậy", icon: "users", spare: true });
   items.push({ href: "/hop-tin", label: "Hộp tin", short: "Hộp tin", icon: "inbox", count: unread });
   return items;

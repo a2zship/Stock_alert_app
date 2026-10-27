@@ -125,6 +125,27 @@ Huy hiệu: Lần đầu giúp · Phản hồi nhanh (3 lần) · Bạn của c�
 
 **Nguyên tắc an toàn của khung lợi ích:** điểm **không đổi ra tiền**, không chuyển nhượng, **không ảnh hưởng** việc giáo viên duyệt hay kiểm tra tại cổng; chỉ lần đón trọn vẹn mới được tính (từ chối / không giao được / hết hạn không có điểm). Mục đích là ghi nhận và cảm ơn, không tạo động cơ để người lạ đi đón trẻ. Các quyền lợi có tài trợ/đối tác **[CẦN XÁC MINH]** với nhà trường và quy định về quảng cáo trong trường học trước khi bật.
 
+> Điểm tương trợ vẫn **không đổi ra tiền**. Việc kiếm tiền tách riêng thành "Đón hộ có phí" (mục 3.8); lượt có phí **không** được cộng điểm tương trợ để hai cơ chế không lẫn vào nhau.
+
+### 3.8. Đón hộ có phí — phụ huynh cùng trường kiếm thêm (bổ sung 27/10)
+
+Sếp chọn: người nhận tiền là **phụ huynh cùng trường**; thanh toán **chuyển khoản VietQR thẳng cho người đón** (app không giữ tiền); nền tảng **trích % thu nhập người đón**; mức thù lao là **mức tối thiểu** để người nhờ chủ động chuyển kèm lời cảm ơn (có thể thoả thuận thêm).
+
+**Ai được nhận việc có phí:** phụ huynh có con học cùng trường, khai 4 số cuối CCCD, ảnh chân dung, tài khoản ngân hàng **đứng tên chính mình** (tên chủ TK phải khớp tên trong app), đồng ý quy định → **cô giáo lớp của con người đó duyệt một lần** (`/giao-vien/nguoi-don-co-phi`). Cô có thể từ chối hoặc tạm dừng, bắt buộc ghi lý do. Đã duyệt thì mỗi lượt không phải khai lại CCCD/ảnh.
+
+**Luồng một lượt có phí:**
+1. Người nhờ đăng lời nhờ trong nhóm lớp, điền **thù lao tối thiểu** (20.000–300.000đ, tròn nghìn) — để trống là nhờ tương trợ như cũ.
+2. Người đón có phí đã duyệt trong **cả trường** được báo; bảng việc (`/kiem-tien`) chỉ hiện lớp, giờ, phường/xã, mức tối thiểu, số tiền thực nhận dự kiến — **không hiện tên bé**.
+3. Người nhờ chọn một người → tạo yêu cầu "ngoài danh sách" như cũ: người đón nhận lời → **cô gọi xác minh với phụ huynh** rồi duyệt → kiểm mã/ảnh/CCCD tại cổng → phụ huynh xác nhận bé về an toàn. **Không bỏ bước an toàn nào.**
+4. Bé về an toàn → trang yêu cầu hiện thẻ "Gửi lời cảm ơn": phụ huynh để nguyên mức tối thiểu hoặc **tự tăng số tiền** (không thấp hơn mức đã hứa, tối đa 1.000.000đ để tránh gõ thừa số 0), bấm Tạo mã → mã VietQR theo số đó, nội dung "DONHO xxxxxx CAM ON", kèm lời cảm ơn tuỳ chọn → "Tôi đã chuyển khoản".
+5. Người đón bấm "Đã nhận tiền" (nếu phụ huynh quên báo thì bấm này cũng tính là đã trả); chưa nhận được có thể "Nhắc phụ huynh" tối đa 1 lần/24 giờ.
+
+**Phí nền tảng:** 10% **[GIẢ ĐỊNH]** (biến `PLATFORM_FEE_RATE`) tính trên **số thực chuyển**, làm tròn nghìn. Người đón tự nộp định kỳ bằng VietQR tới tài khoản nền tảng (`PLATFORM_BANK_*`) rồi bấm "Tôi đã nộp phí". Nợ từ 300.000đ **và** có khoản quá 30 ngày → tạm không nhận việc có phí mới tới khi nộp. Việc đối soát sao kê nền tảng **chưa có màn quản trị** (để sau).
+
+**Không làm:** app không giữ tiền, không thu hộ, không trả trước; không đòi thêm ngoài mức đã hứa; người đón có phí không thấy tên bé trước khi được chọn.
+
+**[CẦN XÁC MINH] pháp lý:** (a) không giữ tiền nên nhiều khả năng không phải trung gian thanh toán, cần luật sư xác nhận; (b) thu nhập của người đón và phí nền tảng — nghĩa vụ thuế TNCN/hoá đơn; (c) đưa đón trẻ có thu tiền có cần đăng ký kinh doanh/điều kiện gì không; (d) mã ngân hàng (BIN NAPAS) trong `src/domain/vietqr.ts` và việc app ngân hàng thật quét được mã — **chưa thử bằng app ngân hàng thật**.
+
 ## 4. Quy mô 34 tỉnh thành
 
 ### 4.1. Mô hình đơn vị hành chính

@@ -166,3 +166,39 @@ describe("điểm trả bé", () => {
     expect(canSeeDropAddress("DA_GIAO", { guardian: false, teacher: false, delegate: false })).toBe(false);
   });
 });
+
+describe("đón có phí: VietQR + thù lao", async () => {
+  const { crc16, transferNote, vietQr } = await import("@/domain/vietqr");
+  const { commissionOf, parseFee, parsePay } = await import("@/domain/money");
+  it("CRC16-CCITT-FALSE đúng giá trị chuẩn", () => expect(crc16("123456789")).toBe("29B1"));
+  it("mã VietQR có đủ trường NAPAS, số tiền, nội dung không dấu và CRC khớp", () => {
+    const q = vietQr({ bin: "970436", account: "0123456789", amount: 50000, note: "Đón hộ bé" });
+    expect(q.startsWith("000201010212")).toBe(true);
+    expect(q).toContain("A000000727");
+    expect(q).toContain("970436");
+    expect(q).toContain("0123456789");
+    expect(q).toContain("QRIBFTTA");
+    expect(q).toContain("5303704540550000");
+    expect(q).toContain("DON HO BE");
+    expect(q.slice(-4)).toBe(crc16(q.slice(0, -4)));
+    expect(transferNote("Đinh   Thị Ánh-Ngọc!!")).toBe("DINH THI ANH NGOC");
+  });
+  it("thù lao: bỏ trống = miễn phí; ngoài khoảng hoặc lẻ nghìn thì báo lỗi; phí làm tròn nghìn", () => {
+    expect(parseFee("")).toBeNull();
+    expect(parseFee("50.000")).toBe(50000);
+    expect(parseFee("10000")).toHaveProperty("error");
+    expect(parseFee("500000")).toHaveProperty("error");
+    expect(parseFee("50500")).toHaveProperty("error");
+    expect(parseFee("abc")).toHaveProperty("error");
+    expect(commissionOf(50000)).toBe(5000);
+    expect(commissionOf(35000)).toBe(4000);
+    expect(commissionOf(35000, 0.15)).toBe(5000);
+  });
+  it("số tiền cảm ơn: trống = mức tối thiểu; không thấp hơn mức đã hứa; chặn gõ thừa số 0", () => {
+    expect(parsePay("", 50000)).toBe(50000);
+    expect(parsePay("70.000", 50000)).toBe(70000);
+    expect(parsePay("40000", 50000)).toHaveProperty("error");
+    expect(parsePay("5000000", 50000)).toHaveProperty("error");
+    expect(parsePay("70500", 50000)).toHaveProperty("error");
+  });
+});

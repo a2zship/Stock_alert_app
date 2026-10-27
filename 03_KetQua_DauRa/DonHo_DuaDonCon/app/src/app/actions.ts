@@ -11,6 +11,7 @@ import * as T from "@/server/trusted";
 import * as C from "@/server/chat";
 import * as G from "@/server/tracking";
 import * as P from "@/server/places";
+import * as E from "@/server/earn";
 import { SESSION_COOKIE, sessionDays, signSession } from "@/lib/session";
 import { TransitionError } from "@/domain/state";
 
@@ -212,6 +213,60 @@ export async function arriveDropAction(_: FormState, fd: FormData): Promise<Form
   });
 }
 
+// ── Đón hộ có phí ──
+
+export async function registerHelperAction(_: FormState, fd: FormData): Promise<FormState> {
+  return run(async (uid) => {
+    await E.registerHelper(uid, {
+      cccdLast4: s(fd, "cccdLast4"), photo: s(fd, "photo"), bankBin: s(fd, "bankBin"), bankAccount: s(fd, "bankAccount"),
+      accountName: s(fd, "accountName"), agree: s(fd, "agree") === "1",
+    });
+    revalidatePath("/kiem-tien");
+    return { ok: "Đã gửi đăng ký. Cô giáo lớp của con bạn sẽ duyệt." };
+  });
+}
+
+export async function reviewHelperAction(_: FormState, fd: FormData): Promise<FormState> {
+  return run(async (uid) => {
+    const d = s(fd, "decision");
+    if (d !== "approve" && d !== "reject" && d !== "suspend") throw new AppError("Không rõ bạn chọn nút nào. Tải lại trang rồi bấm lại.");
+    await E.reviewHelper(uid, s(fd, "id"), d, s(fd, "note"));
+    revalidatePath("/giao-vien/nguoi-don-co-phi");
+    return { ok: d === "approve" ? "Đã duyệt." : d === "reject" ? "Đã từ chối." : "Đã tạm dừng." };
+  });
+}
+
+export async function markPaidAction(_: FormState, fd: FormData): Promise<FormState> {
+  return run(async (uid) => {
+    await E.markPaid(uid, s(fd, "id"), { amount: s(fd, "amount"), thanks: s(fd, "thanks") });
+    revalidatePath(`/yeu-cau/${s(fd, "id")}`);
+    return { ok: "Đã báo người đón. Cảm ơn bạn!" };
+  });
+}
+
+export async function markReceivedAction(_: FormState, fd: FormData): Promise<FormState> {
+  return run(async (uid) => {
+    await E.markReceived(uid, s(fd, "id"));
+    revalidatePath(`/yeu-cau/${s(fd, "id")}`);
+    return { ok: "Đã ghi nhận." };
+  });
+}
+
+export async function remindPaymentAction(_: FormState, fd: FormData): Promise<FormState> {
+  return run(async (uid) => {
+    await E.remindPayment(uid, s(fd, "id"));
+    return { ok: "Đã nhắc phụ huynh." };
+  });
+}
+
+export async function settleCommissionAction(_: FormState): Promise<FormState> {
+  return run(async (uid) => {
+    await E.settleCommission(uid);
+    revalidatePath("/kiem-tien");
+    return { ok: "Đã ghi nhận bạn nộp phí nền tảng. Cảm ơn bạn!" };
+  });
+}
+
 // ── Nhóm lớp ──
 
 export async function postMessageAction(_: FormState, fd: FormData): Promise<FormState> {
@@ -224,7 +279,7 @@ export async function postMessageAction(_: FormState, fd: FormData): Promise<For
 
 export async function postAskAction(_: FormState, fd: FormData): Promise<FormState> {
   return run(async (uid) => {
-    await C.postPickupAsk(uid, { studentId: s(fd, "studentId"), date: s(fd, "date"), note: s(fd, "note"), drop: dropOf(fd) });
+    await C.postPickupAsk(uid, { studentId: s(fd, "studentId"), date: s(fd, "date"), note: s(fd, "note"), drop: dropOf(fd), fee: s(fd, "fee") });
     if (s(fd, "savePlace")) await P.savePlace(uid, dropOf(fd));
     revalidatePath("/nhom");
     return { ok: "Đã đăng lời nhờ vào nhóm lớp. Bạn sẽ nhận tin khi có người nhận đón giúp." };

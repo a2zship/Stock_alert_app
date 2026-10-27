@@ -36,16 +36,17 @@ model Ward {
 }
 
 model School {
-  id         String        @id @default(cuid())
+  id         String          @id @default(cuid())
   wardId     Int
-  ward       Ward          @relation(fields: [wardId], references: [id])
+  ward       Ward            @relation(fields: [wardId], references: [id])
   name       String
-  allowAdhoc Boolean       @default(true) // cho phép người đón ngoài danh sách tin cậy
-  address    String        @default("")
+  allowAdhoc Boolean         @default(true) // cho phép người đón ngoài danh sách tin cậy
+  address    String          @default("")
   lat        Float? // toạ độ cổng trường, để vẽ bản đồ theo dõi
   lng        Float?
   classes    Class[]
   admins     SchoolAdmin[]
+  helpers    HelperProfile[]
 }
 
 model Class {
@@ -68,14 +69,16 @@ model User {
   name      String
   createdAt DateTime @default(now())
 
-  guardianOf Guardian[]
-  teaches    TeacherAssignment[]
-  adminOf    SchoolAdmin[]
-  requested  PickupRequest[]     @relation("requester")
-  delegated  PickupRequest[]     @relation("delegate")
-  chatPosts  ChatPost[]
-  chatOffers ChatOffer[]
-  places     SavedPlace[]
+  guardianOf  Guardian[]
+  teaches     TeacherAssignment[]
+  adminOf     SchoolAdmin[]
+  requested   PickupRequest[]     @relation("requester")
+  delegated   PickupRequest[]     @relation("delegate")
+  chatPosts   ChatPost[]
+  chatOffers  ChatOffer[]
+  places      SavedPlace[]
+  helper      HelperProfile?
+  settlements Settlement[]
 }
 
 model Guardian {
@@ -230,6 +233,16 @@ model PickupRequest {
   dropLng     Float?
   droppedAt   DateTime? // người đón bấm "Đã đưa bé tới nơi"
 
+  // đón hộ có phí — phụ huynh cùng trường đã được duyệt. App KHÔNG giữ tiền: người nhờ chuyển khoản VietQR thẳng cho người đón.
+  fee           Int? // thù lao TỐI THIỂU (đồng) người nhờ cam kết; trả khi bé về an toàn
+  paidAmount    Int? // số người nhờ thực chuyển (≥ fee, tự chọn kèm lời cảm ơn)
+  commission    Int? // phí nền tảng trích từ thu nhập người đón, tính lại theo paidAmount khi trả
+  paidAt        DateTime? // người nhờ bấm "Tôi đã chuyển khoản"
+  receivedAt    DateTime? // người đón bấm "Đã nhận tiền"
+  payRemindedAt DateTime?
+  settlementId  String?
+  settlement    Settlement? @relation(fields: [settlementId], references: [id])
+
   createdAt DateTime       @default(now())
   events    RequestEvent[]
 
@@ -344,6 +357,7 @@ model ChatPost {
   dropWard    String?
   dropLat     Float?
   dropLng     Float?
+  fee         Int? // > 0: lời nhờ có thù lao tối thiểu — phụ huynh cả trường (người đón có phí đã duyệt) thấy và nhận được
   createdAt   DateTime    @default(now())
   offers      ChatOffer[]
 
@@ -375,4 +389,40 @@ model SavedPlace {
   createdAt DateTime @default(now())
 
   @@unique([userId, label])
+}
+
+enum HelperStatus {
+  CHO_DUYET
+  DA_DUYET
+  TU_CHOI
+  TAM_DUNG
+}
+
+/// Phụ huynh đăng ký nhận đón hộ có phí trong trường của con mình. Giáo viên lớp của con họ duyệt một lần.
+model HelperProfile {
+  id           String       @id @default(cuid())
+  userId       String       @unique
+  user         User         @relation(fields: [userId], references: [id])
+  schoolId     String
+  school       School       @relation(fields: [schoolId], references: [id])
+  cccdLast4    String
+  photoId      String
+  bankBin      String // mã ngân hàng NAPAS (6 số) để tạo VietQR
+  bankAccount  String
+  accountName  String // tên chủ tài khoản, IN HOA không dấu
+  status       HelperStatus @default(CHO_DUYET)
+  note         String?
+  reviewedById String?
+  reviewedAt   DateTime?
+  createdAt    DateTime     @default(now())
+}
+
+/// Một lần người đón nộp phí nền tảng (gộp nhiều lượt đón).
+model Settlement {
+  id        String          @id @default(cuid())
+  userId    String
+  user      User            @relation(fields: [userId], references: [id])
+  amount    Int
+  createdAt DateTime        @default(now())
+  requests  PickupRequest[]
 }

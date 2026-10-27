@@ -2,17 +2,19 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import QRCode from "qrcode";
 import {
-  cancelRequestAction, confirmHomeAction, delegateRespondAction, failHandoverAction, gatePinAction, handoverAction, teacherDecideAction,
+  cancelRequestAction, confirmHomeAction, markPaidAction, markReceivedAction, remindPaymentAction, delegateRespondAction, failHandoverAction, gatePinAction, handoverAction, teacherDecideAction,
 } from "@/app/actions";
 import { ActionForm, PhotoInput, SubmitButton } from "@/components/forms";
 import { Icon, type IconName } from "@/components/Icon";
 import { Journey } from "@/components/Journey";
 import { TrackingMap } from "@/components/TrackingMap";
 import { Note, PageHead, Photo, StatusBadge } from "@/components/ui";
+import { PAY_MAX, showVnd } from "@/domain/money";
 import { maskPhone } from "@/domain/phone";
 import { FINAL, PIN_MAX_ATTEMPTS, type Status } from "@/domain/state";
 import { showDateTime, showWindow } from "@/domain/time";
 import { publicUrl } from "@/server/db";
+import { payInfo } from "@/server/earn";
 import { currentUser, requestView } from "@/server/queries";
 import { trackingView } from "@/server/tracking";
 
@@ -35,14 +37,16 @@ const ACTION_LABEL: Record<string, { text: string; icon: IconName; tone?: "ok" |
   CHIA_SE_VI_TRI: { text: "Người đón bật chia sẻ vị trí", icon: "navigation" },
   TOI_CONG: { text: "Người đón báo đã tới cổng", icon: "mapPin", tone: "ok" },
   TOI_NOI_TRA: { text: "Người đón báo đã đưa bé tới nơi", icon: "home", tone: "ok" },
+  DA_TRA_THU_LAO: { text: "Phụ huynh báo đã chuyển thù lao", icon: "banknote", tone: "ok" },
+  DA_NHAN_THU_LAO: { text: "Người đón xác nhận đã nhận thù lao", icon: "wallet", tone: "ok" },
 };
 const ROLE_LABEL: Record<string, string> = { PHU_HUYNH: "Phụ huynh", NGUOI_DON: "Người đón", GIAO_VIEN: "Giáo viên", HE_THONG: "Hệ thống" };
 
-export default async function RequestPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ moi?: string }> }) {
+export default async function RequestPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ moi?: string; tra?: string }> }) {
   const me = await currentUser();
   if (!me) redirect("/dang-nhap");
   const { id } = await params;
-  const { moi } = await searchParams;
+  const { moi, tra } = await searchParams;
   const v = await requestView(me.id, id);
   if (!v) notFound();
   const { r, asParent, asTeacher, asDelegate, codes, gateReady, drop } = v;
@@ -52,6 +56,8 @@ export default async function RequestPage({ params, searchParams }: { params: Pr
   const canCancel = asParent && ["CHO_NGUOI_DON", "CHO_GIAO_VIEN", "DA_DUYET", "BI_KHOA"].includes(status);
 
   const tracking = ["DA_DUYET", "DA_GIAO"].includes(status) ? await trackingView(me.id, r.id) : null;
+  const pay = r.fee && asParent ? await payInfo(me.id, r.id, tra) : null;
+  const paySvg = pay && !pay.paidAt ? await QRCode.toString(pay.qr, { type: "svg", margin: 1, errorCorrectionLevel: "M" }) : null;
   const map = tracking && (
     <TrackingMap requestId={r.id} initial={tracking} isDelegate={asDelegate} studentName={r.student.name} />
   );
@@ -97,6 +103,7 @@ export default async function RequestPage({ params, searchParams }: { params: Pr
                   <dt>Trả bé tại</dt>
                   <dd>{drop ? (drop.address ? <><strong>{drop.label}</strong> · {drop.address}</> : <>{drop.ward} <span className="small muted">— số nhà hiện sau khi cô giáo duyệt</span></>)
                     : <span className="muted">{FINAL.includes(status) ? "Đã xoá khi yêu cầu đóng" : "Chưa khai — gọi phụ huynh để hỏi"}</span>}</dd>
+                  {r.fee ? <><dt>Thù lao</dt><dd><span className="money">{showVnd(r.fee)}</span>{asDelegate && r.commission != null ? <span className="small muted"> tối thiểu{r.paidAmount ? ` · phụ huynh đã chuyển ${showVnd(r.paidAmount)}` : ""} · phí nền tảng {Math.round((r.commission / (r.paidAmount ?? r.fee)) * 100)}%</span> : <span className="small muted"> tối thiểu · chuyển khoản kèm lời cảm ơn sau khi bé về an toàn</span>}</dd></> : null}
                   {r.reason && <><dt>Lời nhắn</dt><dd>{r.reason}</dd></>}
                 </dl>
               </div>
@@ -214,8 +221,69 @@ export default async function RequestPage({ params, searchParams }: { params: Pr
           {asTeacher && status === "DA_GIAO" && r.handedOverAt && (
             <Note kind="ok">Đã giao bé lúc {showDateTime(r.handedOverAt)}. Phụ huynh đã nhận thông báo và sẽ xác nhận khi bé về tới nơi.</Note>
           )}
-          {asDelegate && status === "DA_GIAO" && <Note kind="ok">Cảm ơn bạn đã đón bé. Phụ huynh đã nhận thông báo; khi phụ huynh xác nhận bé về an toàn, bạn được cộng điểm tương trợ.</Note>}
-          {asDelegate && status === "HOAN_TAT" && (
+          {asDelegate && status === "DA_GIAO" && <Note kind="ok">Cảm ơn bạn đã đón bé. Phụ huynh đã nhận thông báo; khi phụ huynh xác nhận bé về an toàn, {r.fee ? "phụ huynh sẽ chuyển thù lao cho bạn" : "bạn được cộng điểm tương trợ"}.</Note>}
+          {/* ── Thù lao: phụ huynh chuyển khoản thẳng cho người đón ── */}
+          {pay && (
+            <div className="card" id="tra-tien">
+              <h2>{pay.paidAt ? `Đã chuyển ${showVnd(pay.amount)} cảm ơn ${r.delegateName}` : `Gửi lời cảm ơn ${r.delegateName}`}</h2>
+              {pay.paidAt ? <p className="small muted mb-0">Bạn báo đã chuyển lúc {showDateTime(pay.paidAt)}.{pay.receivedAt ? " Người đón đã xác nhận nhận tiền." : ""}</p> : (
+                <>
+                  <p className="small muted">Bạn đã hứa tối thiểu {showVnd(pay.min)}. Muốn cảm ơn thêm thì đổi số tiền rồi bấm Tạo mã. Tiền vào thẳng tài khoản người đón, Đón Hộ không giữ tiền.</p>
+                  <form method="get" action="#tra-tien" className="pay-pick">
+                    <div className="field">
+                      <label htmlFor="tra">Số tiền chuyển (đồng)</label>
+                      <input id="tra" name="tra" type="number" inputMode="numeric" min={pay.min} max={PAY_MAX} step={1000} defaultValue={pay.amount} aria-describedby={pay.error ? "tra-err" : undefined} />
+                    </div>
+                    <button type="submit" className="btn btn-plain">Tạo mã</button>
+                  </form>
+                  {pay.error && <p id="tra-err" className="hint mb-10" role="alert" style={{ color: "var(--danger)" }}>{pay.error}</p>}
+                  <div className="pay-box">
+                    {paySvg && <div className="qr" role="img" aria-label={`Mã VietQR chuyển ${showVnd(pay.amount)}`} dangerouslySetInnerHTML={{ __html: paySvg }} />}
+                    <dl className="kv">
+                      <dt>Số tiền</dt><dd className="money">{showVnd(pay.amount)}</dd>
+                      <dt>Ngân hàng</dt><dd>{pay.bank}</dd>
+                      <dt>Tài khoản</dt><dd>{pay.account}</dd>
+                      <dt>Chủ TK</dt><dd>{pay.accountName}</dd>
+                      <dt>Nội dung</dt><dd>{pay.note}</dd>
+                    </dl>
+                  </div>
+                  <ActionForm action={markPaidAction} className="mt-10">
+                    <input type="hidden" name="id" value={r.id} />
+                    <input type="hidden" name="amount" value={pay.amount} />
+                    {!r.thanks && (
+                      <div className="field">
+                        <label htmlFor="pay-thanks">Lời cảm ơn kèm theo (không bắt buộc)</label>
+                        <input id="pay-thanks" name="thanks" type="text" maxLength={200} placeholder="Ví dụ: Cảm ơn chị đã đón bé giúp!" />
+                      </div>
+                    )}
+                    <SubmitButton className="btn btn-ok" confirm={`Bạn đã chuyển ${showVnd(pay.amount)} cho ${r.delegateName}?`}><Icon name="check" size={16} />Tôi đã chuyển khoản</SubmitButton>
+                  </ActionForm>
+                </>
+              )}
+            </div>
+          )}
+          {asDelegate && status === "HOAN_TAT" && r.fee ? (
+            <div className="card">
+              <h2>{r.paidAmount ? `Phụ huynh chuyển ${showVnd(r.paidAmount)}` : `Thù lao tối thiểu ${showVnd(r.fee)}`}</h2>
+              <p className="small muted">{r.receivedAt ? `Bạn đã xác nhận nhận tiền lúc ${showDateTime(r.receivedAt)}.` : r.paidAt ? "Phụ huynh báo đã chuyển. Kiểm tra tài khoản rồi xác nhận." : "Phụ huynh chưa chuyển. Bạn có thể nhắc nhẹ (tối đa 1 lần/ngày)."}</p>
+              <div className="actions">
+                {!r.receivedAt && (
+                  <ActionForm action={markReceivedAction} className="inline">
+                    <input type="hidden" name="id" value={r.id} />
+                    <SubmitButton className="btn btn-ok"><Icon name="check" size={16} />Đã nhận tiền</SubmitButton>
+                  </ActionForm>
+                )}
+                {!r.paidAt && (
+                  <ActionForm action={remindPaymentAction} className="inline">
+                    <input type="hidden" name="id" value={r.id} />
+                    <SubmitButton className="btn btn-plain">Nhắc phụ huynh</SubmitButton>
+                  </ActionForm>
+                )}
+                <Link href="/kiem-tien" className="btn btn-plain"><Icon name="wallet" size={16} />Thu nhập của tôi</Link>
+              </div>
+            </div>
+          ) : null}
+          {asDelegate && status === "HOAN_TAT" && !r.fee && (
             <div className="card reward">
               <h2>Bé đã về an toàn — cảm ơn bạn!</h2>
               {r.thanks && <div className="thanks mt-10"><q>{r.thanks}</q><div className="meta">{r.requester.name}</div></div>}

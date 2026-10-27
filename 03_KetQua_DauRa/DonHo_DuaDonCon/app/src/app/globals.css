@@ -677,3 +677,21 @@ input[type="file"] { color: var(--muted); }
 .drop-line .icon { color: var(--map-home); flex: none; margin-top: 2px; }
 .ask-ward { display: inline-flex; align-items: center; gap: 4px; font-size: var(--fs-sm); color: var(--text-2); }
 .ask-ward .icon { color: var(--map-home); }
+
+/* ── Đón hộ có phí ── */
+.fee-chip { display: inline-flex; align-items: center; gap: 4px; margin-left: var(--s-2); font-size: var(--fs-xs); font-weight: 600; color: var(--ok); background: var(--ok-soft);
+  border-radius: var(--r-pill); padding: 2px 8px; font-variant-numeric: tabular-nums; vertical-align: middle; }
+.money { font-variant-numeric: tabular-nums; font-weight: 700; }
+.money-lg { font-size: 1.75rem; line-height: 1.2; font-variant-numeric: tabular-nums; font-weight: 700; color: var(--text); }
+.pay-box { display: flex; gap: var(--s-4); align-items: flex-start; flex-wrap: wrap; }
+.pay-box .qr { width: 200px; max-width: 100%; background: #fff; padding: var(--s-2); border-radius: var(--r-sm); border: 1px solid var(--border); }
+.pay-box .qr svg { display: block; width: 100%; height: auto; }
+.pay-box dl { flex: 1 1 200px; min-width: 0; }
+.job { display: flex; justify-content: space-between; gap: var(--s-3); align-items: center; padding: var(--s-3) 0; border-top: 1px solid var(--border); flex-wrap: wrap; }
+.job:first-child { border-top: 0; }
+.job .meta { font-size: var(--fs-sm); color: var(--muted); }
+.stat-row { display: flex; flex-wrap: wrap; gap: var(--s-3); margin-bottom: var(--s-4); }
+.stat-row > div { flex: 1 1 140px; background: var(--surface-2); border-radius: var(--r-md); padding: var(--s-3) var(--s-4); }
+.stat-row .k { font-size: var(--fs-sm); color: var(--muted); }
+.pay-pick { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--s-3); margin-bottom: var(--s-3); }
+.pay-pick .field { flex: 1 1 160px; margin-bottom: 0; }

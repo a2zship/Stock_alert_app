@@ -59,6 +59,11 @@ export function Composer({ classId, kids, today, maxDate, places, center }: {
             <input id="ask-note" name="note" type="text" maxLength={300} placeholder="Ví dụ: Mình kẹt họp tới 18h" />
           </div>
           <DropPicker places={places} center={center} prefix="ask-drop" />
+          <div className="field">
+            <label htmlFor="ask-fee">Thù lao tối thiểu cho người đón (không bắt buộc)</label>
+            <input id="ask-fee" name="fee" type="number" inputMode="numeric" min={20000} max={300000} step={1000} placeholder="Ví dụ: 50000" />
+            <p className="hint">Có thù lao thì phụ huynh <strong>cả trường</strong> (đã được cô duyệt làm người đón có phí) thấy và nhận được, chỉ thấy lớp, giờ, phường/xã. Đây là mức tối thiểu: khi bé về an toàn bạn tự chuyển từ mức này trở lên kèm lời cảm ơn (có thể thoả thuận thêm với người nhận). Để trống = nhờ tương trợ trong lớp.</p>
+          </div>
           <SubmitButton className="btn btn-accent btn-block"><Icon name="hand" />Đăng lời nhờ vào nhóm</SubmitButton>
           <p className="hint">Người nhận giúp vẫn phải nhận lời, được cô duyệt và kiểm mã tại cổng như mọi lần đón hộ. Số điện thoại không hiện trong nhóm.</p>
         </ActionForm>

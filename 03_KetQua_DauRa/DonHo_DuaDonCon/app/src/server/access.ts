@@ -25,6 +25,10 @@ export async function canViewPhoto(userId: string, photoId: string): Promise<boo
   if (!photo) return false;
   if (photo.ownerId === userId) return true;
 
+  // Ảnh hồ sơ người đón có phí: GV lớp có con của người đó (để duyệt)
+  const hp = await db.helperProfile.findFirst({ where: { photoId }, select: { userId: true } });
+  if (hp && (await db.teacherAssignment.count({ where: { userId, class: { students: { some: { guardians: { some: { userId: hp.userId } } } } } } }))) return true;
+
   const studentIds = new Set<string>();
   for (const t of await db.trustedPerson.findMany({ where: { photoId }, select: { studentId: true } })) studentIds.add(t.studentId);
   for (const s of await db.student.findMany({ where: { photoId }, select: { id: true } })) studentIds.add(s.id);

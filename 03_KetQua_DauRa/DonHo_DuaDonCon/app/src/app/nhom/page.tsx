@@ -5,6 +5,7 @@ import { ActionForm, SubmitButton } from "@/components/forms";
 import { Icon } from "@/components/Icon";
 import { Avatar, Empty, PageHead, StatusBadge } from "@/components/ui";
 import type { Status } from "@/domain/state";
+import { showVnd } from "@/domain/money";
 import { addDays, vnToday } from "@/domain/time";
 import { chatFeed, classesOf } from "@/server/chat";
 import { placesOf } from "@/server/places";
@@ -48,7 +49,7 @@ export default async function GroupPage({ searchParams }: { searchParams: Promis
             {feed.openAsks.map((p) => (
               <a key={p.id} href={`#p-${p.id}`}>
                 <div className="who"><strong>{p.author.name}</strong><TierChip {...p.author} /></div>
-                <div className="desc">Bé {p.ask!.studentName}</div>
+                <div className="desc">Bé {p.ask!.studentName}{p.ask!.fee ? <span className="fee-chip"><Icon name="banknote" size={12} />Từ {showVnd(p.ask!.fee)}</span> : null}</div>
                 <div className="meta">{p.ask!.when}{p.ask!.ward ? ` · trả bé ở ${p.ask!.ward}` : ""} · {p.offers.length ? `${p.offers.length} người nhận` : "chưa có ai nhận"}</div>
               </a>
             ))}
@@ -75,7 +76,7 @@ export default async function GroupPage({ searchParams }: { searchParams: Promis
               <Avatar name={p.author.name} size="sm" />
               <div className="who"><strong>{p.mine ? "Bạn" : p.author.name}</strong>{p.author.who}<TierChip {...p.author} /></div>
             </div>
-            <div className="ask-kicker mt-10"><Icon name="hand" size={16} />Nhờ đón hộ</div>
+            <div className="ask-kicker mt-10"><Icon name="hand" size={16} />Nhờ đón hộ{p.ask?.fee ? <span className="fee-chip"><Icon name="banknote" size={12} />Thù lao từ {showVnd(p.ask.fee)}</span> : null}</div>
             <div className="ask-title">Bé {p.ask?.studentName}</div>
             <div className="meta"><Icon name="clock" size={16} /> {p.ask?.when}</div>
             {p.ask?.ward && <div className="ask-ward"><Icon name="home" size={16} />{p.ask.dropAddress ?? `Trả bé ở ${p.ask.ward}`}</div>}
@@ -117,7 +118,10 @@ export default async function GroupPage({ searchParams }: { searchParams: Promis
               </div>
             )}
 
-            {p.ask?.canOffer && !p.ask.expired && (
+            {p.ask?.canOffer && !p.ask.expired && p.ask.needHelper && (
+              <p className="small muted mt-10 mb-0">Lời nhờ có thù lao: chỉ người đón có phí đã được cô duyệt mới nhận được. <Link href="/kiem-tien">Đăng ký ở mục Kiếm thêm</Link></p>
+            )}
+            {p.ask?.canOffer && !p.ask.expired && !p.ask.needHelper && (
               <ActionForm action={offerHelpAction} className="mt-15">
                 <input type="hidden" name="postId" value={p.id} />
                 <div className="offer-form">

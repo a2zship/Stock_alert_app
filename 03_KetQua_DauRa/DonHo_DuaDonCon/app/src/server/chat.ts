@@ -2,10 +2,12 @@
 // người nhờ chọn một người → tạo yêu cầu đón hộ bình thường (vẫn đủ 3 bên xác nhận + kiểm tại cổng).
 // Số điện thoại KHÔNG hiện trong nhóm. Điểm trả: cả nhóm chỉ thấy phường/xã, địa chỉ chi tiết chỉ phụ huynh của bé thấy.
 import { CLEAR_DROP, parseDrop, showDrop, type DropInput } from "@/domain/drop";
+import { commissionOf, parseFee } from "@/domain/money";
 import { computeReward, TIERS } from "@/domain/reward";
 import { addDays, showWindow, vnDateTime, vnToday } from "@/domain/time";
 import { requireGuardian } from "./access";
-import { AppError, db } from "./db";
+import { AppError, db, platformRate } from "./db";
+import { requirePaidHelper } from "./earn";
 import { notify } from "./notify";
 import { createRequest } from "./requests";
 import { rewardOf } from "./rewards";
@@ -46,8 +48,10 @@ export async function postMessage(userId: string, classId: string, body: string)
 }
 
 /** Phụ huynh đăng lời nhờ đón trong nhóm lớp của con. */
-export async function postPickupAsk(userId: string, input: { studentId: string; date: string; note?: string; drop?: DropInput }, now = new Date()) {
+export async function postPickupAsk(userId: string, input: { studentId: string; date: string; note?: string; drop?: DropInput; fee?: string | number }, now = new Date()) {
   await requireGuardian(userId, input.studentId);
+  const fee = parseFee(input.fee);
+  if (fee && typeof fee === "object") throw new AppError(fee.error);
   const drop = parseDrop(input.drop);
   if (drop && "error" in drop) throw new AppError(drop.error);
   const student = await db.student.findUniqueOrThrow({ where: { id: input.studentId }, include: { class: true } });
@@ -63,19 +67,33 @@ export async function postPickupAsk(userId: string, input: { studentId: string; 
   await db.$transaction(async (tx) => {
     const post = await tx.chatPost.create({
       data: { classId: student.classId, authorId: userId, kind: "NHO_DON", studentId: student.id, date: input.date, body: note,
-        ...(drop && { dropLabel: drop.label, dropAddress: drop.address, dropWard: drop.ward, dropLat: drop.lat, dropLng: drop.lng }) },
+        ...(drop && { dropLabel: drop.label, dropAddress: drop.address, dropWard: drop.ward, dropLat: drop.lat, dropLng: drop.lng }),
+        ...(fee && { fee }) },
     });
     const others = (await classMembers(student.classId)).filter((u) => u.id !== userId);
     await notify(tx, others.map((u) => ({ userId: u.id, phone: u.phone })), "PUSH",
       `${me.name} cần người đón giúp bé ${student.name} lúc ${when}${drop ? `, trả bé ở ${drop.ward}` : ""}. Ai đón giúp được thì bấm nhận trong nhóm lớp.`, `/nhom?lop=${student.classId}#p-${post.id}`);
+    if (fee) {
+      // Lời nhờ có thù lao: báo thêm người đón có phí đã duyệt trong trường (ngoài lớp) — không nêu tên bé
+      const helpers = await tx.helperProfile.findMany({ where: { schoolId: student.class.schoolId, status: "DA_DUYET", userId: { notIn: [userId, ...others.map((u) => u.id)] } }, include: { user: true } });
+      await notify(tx, helpers.map((h) => ({ userId: h.userId, phone: h.user.phone })), "PUSH",
+        `Có việc đón hộ ${student.class.name} lúc ${when}${drop ? `, trả ở ${drop.ward}` : ""}, thù lao ${new Intl.NumberFormat("vi-VN").format(fee)}đ.`, "/kiem-tien");
+    }
   });
 }
 
 export async function offerHelp(userId: string, postId: string, note = "") {
   const post = await db.chatPost.findUnique({ where: { id: postId }, include: { student: true } });
   if (!post || post.kind !== "NHO_DON" || !post.studentId) throw new AppError("Không tìm thấy lời nhờ.");
-  const m = await membership(userId, post.classId);
-  if (!m.parent) throw new AppError("Chỉ phụ huynh trong lớp mới nhận đón giúp. Giáo viên kiểm tra tại cổng.");
+  if (post.fee) {
+    // Có thù lao: phụ huynh cả trường nhận được, nhưng phải là người đón có phí đã được duyệt
+    const m = await membership(userId, post.classId).catch(() => null);
+    if (m?.teacher && !m.parent) throw new AppError("Chỉ phụ huynh mới nhận đón giúp. Giáo viên kiểm tra tại cổng.");
+    await requirePaidHelper(userId, post.classId);
+  } else {
+    const m = await membership(userId, post.classId);
+    if (!m.parent) throw new AppError("Chỉ phụ huynh trong lớp mới nhận đón giúp. Giáo viên kiểm tra tại cổng.");
+  }
   if (post.status !== "MO") throw new AppError("Lời nhờ này đã có người nhận hoặc đã đóng.");
   if (await db.guardian.count({ where: { userId, studentId: post.studentId } })) throw new AppError("Bạn là phụ huynh của bé — hãy tự đón hoặc nhờ người khác.");
   const me = await db.user.findUniqueOrThrow({ where: { id: userId } });
@@ -118,6 +136,16 @@ export async function chooseOffer(userId: string, offerId: string, now = new Dat
     const drop = post.dropAddress && post.dropWard
       ? { label: post.dropLabel ?? "", address: post.dropAddress, ward: post.dropWard, lat: post.dropLat, lng: post.dropLng }
       : undefined;
+    if (post.fee) {
+      const prof = await requirePaidHelper(offer.userId, post.classId, now);
+      const id = await createRequest(userId, {
+        studentId: post.studentId!, date: post.date!, mode: "adhoc", name: offer.user.name, phone: offer.user.phone,
+        relation: "Phụ huynh cùng trường (đón có phí)", reason: post.body, drop,
+        paid: { fee: post.fee, commission: commissionOf(post.fee, platformRate()), cccdLast4: prof.cccdLast4, photoId: prof.photoId },
+      }, now);
+      await db.chatPost.update({ where: { id: post.id }, data: { requestId: id, ...CLEAR_DROP } });
+      return id;
+    }
     const trusted = await db.trustedPerson.findFirst({ where: { studentId: post.studentId!, phone: offer.user.phone, status: "DA_DUYET" } });
     const id = await createRequest(userId, trusted
       ? { studentId: post.studentId!, date: post.date!, mode: "trusted", trustedPersonId: trusted.id, reason: post.body, drop }
@@ -169,8 +197,9 @@ export async function chatFeed(userId: string, classId: string, now = new Date()
   const who = (id: string) => {
     if (teachers.some((t) => t.userId === id)) return "Giáo viên";
     const g = guardians.filter((x) => x.userId === id);
-    return g.length ? g.map((x) => `${x.relation} bé ${x.student.name.split(" ").pop()}`).join(", ") : "";
+    return g.length ? g.map((x) => `${x.relation} bé ${x.student.name.split(" ").pop()}`).join(", ") : "Phụ huynh cùng trường · người đón có phí";
   };
+  const myHelper = await db.helperProfile.findUnique({ where: { userId } });
 
   const view = posts.map((p) => {
     const st = p.studentId ? studentOf.get(p.studentId) : undefined;
@@ -180,6 +209,8 @@ export async function chatFeed(userId: string, classId: string, now = new Date()
       ask: st && p.date ? {
         studentName: st.name,
         ward: p.dropWard,
+        fee: p.fee,
+        needHelper: !!p.fee && myHelper?.status !== "DA_DUYET",
         // địa chỉ chi tiết chỉ phụ huynh của bé thấy; phụ huynh khác chỉ thấy phường/xã để biết có tiện đường không
         dropAddress: myStudents.has(st.id) && p.dropAddress && p.dropWard ? `${p.dropLabel ?? "Điểm trả"}: ${showDrop({ address: p.dropAddress, ward: p.dropWard })}` : null,
         when: showWindow(vnDateTime(p.date, st.class.pickupStart), vnDateTime(p.date, st.class.pickupEnd)),
