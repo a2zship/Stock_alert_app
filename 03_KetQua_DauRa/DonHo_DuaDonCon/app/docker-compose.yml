@@ -1,0 +1,24 @@
+name: donho
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-donho}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-donho_local}
+      POSTGRES_DB: donho
+      TZ: UTC
+    ports:
+      - "${DB_PORT:-3273}:5432"
+    volumes:
+      - donho_pg:/var/lib/postgresql/data
+      - ./docker/init-test-db.sql:/docker-entrypoint-initdb.d/10-test-db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-donho} -d donho"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+volumes:
+  donho_pg:

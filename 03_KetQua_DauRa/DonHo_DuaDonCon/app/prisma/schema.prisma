@@ -1,0 +1,378 @@
+// Đón Hộ — xem ../DacTa_UngDung_DonHo_27-10-2026.md. Mọi thời gian lưu UTC, hiển thị giờ Việt Nam.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── Đơn vị hành chính: chính quyền 2 cấp từ 01/07/2025 (34 tỉnh/thành → xã/phường/đặc khu) ──
+
+enum ProvinceKind {
+  TINH
+  THANH_PHO
+}
+
+model Province {
+  id         Int          @id @default(autoincrement())
+  code       String       @unique // mã viết tắt nội bộ, chờ đối chiếu mã chính thức
+  name       String
+  kind       ProvinceKind
+  formedFrom String       @default("") // các tỉnh cũ hợp thành (để người dùng dễ nhận ra)
+  wards      Ward[]
+}
+
+model Ward {
+  id         Int      @id @default(autoincrement())
+  provinceId Int
+  province   Province @relation(fields: [provinceId], references: [id])
+  name       String
+  schools    School[]
+
+  @@unique([provinceId, name])
+}
+
+model School {
+  id         String        @id @default(cuid())
+  wardId     Int
+  ward       Ward          @relation(fields: [wardId], references: [id])
+  name       String
+  allowAdhoc Boolean       @default(true) // cho phép người đón ngoài danh sách tin cậy
+  address    String        @default("")
+  lat        Float? // toạ độ cổng trường, để vẽ bản đồ theo dõi
+  lng        Float?
+  classes    Class[]
+  admins     SchoolAdmin[]
+}
+
+model Class {
+  id          String              @id @default(cuid())
+  schoolId    String
+  school      School              @relation(fields: [schoolId], references: [id])
+  name        String
+  pickupStart String // "HH:MM" giờ Việt Nam
+  pickupEnd   String
+  students    Student[]
+  teachers    TeacherAssignment[]
+  posts       ChatPost[]
+}
+
+// ── Người dùng & vai trò ──
+
+model User {
+  id        String   @id @default(cuid())
+  phone     String   @unique // dạng chuẩn 0xxxxxxxxx
+  name      String
+  createdAt DateTime @default(now())
+
+  guardianOf Guardian[]
+  teaches    TeacherAssignment[]
+  adminOf    SchoolAdmin[]
+  requested  PickupRequest[]     @relation("requester")
+  delegated  PickupRequest[]     @relation("delegate")
+  chatPosts  ChatPost[]
+  chatOffers ChatOffer[]
+  places     SavedPlace[]
+}
+
+model Guardian {
+  userId    String
+  user      User    @relation(fields: [userId], references: [id])
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id])
+  relation  String // Bố, Mẹ, Người giám hộ
+
+  @@id([userId, studentId])
+}
+
+model TeacherAssignment {
+  userId  String
+  user    User   @relation(fields: [userId], references: [id])
+  classId String
+  class   Class  @relation(fields: [classId], references: [id])
+
+  @@id([userId, classId])
+}
+
+model SchoolAdmin {
+  userId   String
+  user     User   @relation(fields: [userId], references: [id])
+  schoolId String
+  school   School @relation(fields: [schoolId], references: [id])
+
+  @@id([userId, schoolId])
+}
+
+model Student {
+  id        String          @id @default(cuid())
+  classId   String
+  class     Class           @relation(fields: [classId], references: [id])
+  name      String
+  photoId   String?
+  guardians Guardian[]
+  trusted   TrustedPerson[]
+  blocked   BlockedPerson[]
+  requests  PickupRequest[]
+  posts     ChatPost[]
+}
+
+// ── Người tin cậy & người không được đón ──
+
+enum TrustStatus {
+  CHO_DUYET
+  DA_DUYET
+  TU_CHOI
+  DA_XOA
+}
+
+model TrustedPerson {
+  id           String      @id @default(cuid())
+  studentId    String
+  student      Student     @relation(fields: [studentId], references: [id])
+  addedById    String
+  name         String
+  phone        String
+  relation     String
+  cccdLast4    String // chỉ lưu 4 số cuối CCCD
+  photoId      String
+  status       TrustStatus @default(CHO_DUYET)
+  reviewedById String?
+  reviewedAt   DateTime?
+  reviewNote   String?
+  createdAt    DateTime    @default(now())
+
+  @@index([studentId, status])
+}
+
+model BlockedPerson {
+  id        String   @id @default(cuid())
+  studentId String
+  student   Student  @relation(fields: [studentId], references: [id])
+  addedById String
+  name      String
+  phone     String?
+  note      String   @default("")
+  createdAt DateTime @default(now())
+}
+
+// ── Yêu cầu đón hộ ──
+
+enum RequestStatus {
+  CHO_NGUOI_DON
+  CHO_GIAO_VIEN
+  DA_DUYET
+  BI_KHOA
+  DA_GIAO
+  HOAN_TAT
+  NGUOI_DON_TU_CHOI
+  GV_TU_CHOI
+  DA_HUY
+  HET_HAN
+  KHONG_GIAO_DUOC
+}
+
+model PickupRequest {
+  id              String        @id @default(cuid())
+  studentId       String
+  student         Student       @relation(fields: [studentId], references: [id])
+  requesterId     String
+  requester       User          @relation("requester", fields: [requesterId], references: [id])
+  delegateId      String
+  delegate        User          @relation("delegate", fields: [delegateId], references: [id])
+  trustedPersonId String?
+  isAdhoc         Boolean
+  delegateName    String
+  delegatePhone   String
+  relation        String
+  cccdLast4       String? // người ngoài danh sách tự khai khi nhận lời
+  delegatePhotoId String?
+  reason          String        @default("")
+  windowStart     DateTime
+  windowEnd       DateTime
+  status          RequestStatus @default(CHO_NGUOI_DON)
+
+  // mã đón một lần — chỉ lưu bản băm
+  tokenHash   String? @unique
+  pinHash     String?
+  codeSealed  String? // token + PIN mã hoá AES-GCM, chỉ để hiện lại cho người đón
+  pinAttempts Int     @default(0)
+
+  teacherCalledParent Boolean   @default(false)
+  decidedById         String?
+  decidedAt           DateTime?
+  decisionNote        String?
+
+  gateVerifiedById String?
+  gateVerifiedAt   DateTime?
+  handedOverById   String?
+  handedOverAt     DateTime?
+  handoverPhotoId  String?
+  failReason       String?
+  closedAt         DateTime?
+  autoClosed       Boolean   @default(false)
+
+  // theo dõi trên bản đồ — chỉ giữ ĐIỂM MỚI NHẤT (không lưu lộ trình), xoá khi yêu cầu đóng
+  delegateLat   Float?
+  delegateLng   Float?
+  delegateLocAt DateTime?
+  arrivedAt     DateTime? // người đón bấm "Tôi đã tới cổng"
+  thanks        String? // lời cảm ơn của phụ huynh khi xác nhận bé về
+
+  // điểm trả bé — phụ huynh khai THEO TỪNG LẦN (không lưu địa chỉ vào hồ sơ trẻ), xoá khi yêu cầu đóng.
+  // Phường/xã giữ lại để hiện trong nhóm lớp; số nhà/đường + toạ độ chỉ phụ huynh, GV lớp, người đón đã được duyệt thấy.
+  dropLabel   String? // "Nhà", "Nhà bà ngoại"…
+  dropAddress String?
+  dropWard    String?
+  dropLat     Float?
+  dropLng     Float?
+  droppedAt   DateTime? // người đón bấm "Đã đưa bé tới nơi"
+
+  createdAt DateTime       @default(now())
+  events    RequestEvent[]
+
+  @@index([studentId, status])
+  @@index([delegateId, status])
+  @@index([status, windowEnd])
+}
+
+// Nhật ký chỉ thêm, không sửa/xoá
+model RequestEvent {
+  id         String         @id @default(cuid())
+  requestId  String
+  request    PickupRequest  @relation(fields: [requestId], references: [id])
+  actorId    String? // null = hệ thống
+  actorRole  String // PHU_HUYNH | NGUOI_DON | GIAO_VIEN | HE_THONG
+  action     String
+  fromStatus RequestStatus?
+  toStatus   RequestStatus?
+  note       String         @default("")
+  at         DateTime       @default(now())
+
+  @@index([requestId, at])
+}
+
+model AuditLog {
+  id      String   @id @default(cuid())
+  actorId String?
+  action  String
+  target  String   @default("")
+  meta    Json?
+  at      DateTime @default(now())
+}
+
+// ── Ảnh (lưu trong DB để mọi lần xem đều qua kiểm quyền) ──
+
+enum PhotoKind {
+  CHAN_DUNG
+  BAN_GIAO
+  TRE
+}
+
+model Photo {
+  id        String    @id @default(cuid())
+  kind      PhotoKind
+  mime      String
+  bytes     Bytes
+  ownerId   String?
+  createdAt DateTime  @default(now())
+}
+
+// ── Đăng nhập OTP & hộp tin thử nghiệm ──
+
+model OtpCode {
+  id        String    @id @default(cuid())
+  phone     String
+  codeHash  String
+  expiresAt DateTime
+  attempts  Int       @default(0)
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([phone, createdAt])
+}
+
+enum Channel {
+  SMS
+  PUSH
+}
+
+model Message {
+  id        String    @id @default(cuid())
+  toPhone   String
+  toUserId  String?
+  channel   Channel
+  body      String
+  link      String?
+  createdAt DateTime  @default(now())
+  readAt    DateTime?
+
+  @@index([toUserId, createdAt])
+}
+
+// ── Nhóm chat của lớp: phụ huynh + giáo viên; phụ huynh đăng lời nhờ đón, phụ huynh khác nhận giúp ──
+
+enum PostKind {
+  TIN_NHAN
+  NHO_DON
+}
+
+enum PostStatus {
+  MO // đang tìm người
+  DA_CHON // đã chọn người, đã tạo yêu cầu đón hộ
+  DA_DONG // người đăng tự đóng
+}
+
+model ChatPost {
+  id          String      @id @default(cuid())
+  classId     String
+  class       Class       @relation(fields: [classId], references: [id])
+  authorId    String
+  author      User        @relation(fields: [authorId], references: [id])
+  kind        PostKind
+  body        String
+  studentId   String? // chỉ với NHO_DON
+  student     Student?    @relation(fields: [studentId], references: [id])
+  date        String? // YYYY-MM-DD, chỉ với NHO_DON
+  status      PostStatus  @default(MO)
+  requestId   String? // yêu cầu đón hộ tạo ra khi chọn người
+  // điểm trả: cả nhóm chỉ thấy phường/xã; địa chỉ chi tiết chuyển sang yêu cầu khi chọn người rồi xoá khỏi bài đăng
+  dropLabel   String?
+  dropAddress String?
+  dropWard    String?
+  dropLat     Float?
+  dropLng     Float?
+  createdAt   DateTime    @default(now())
+  offers      ChatOffer[]
+
+  @@index([classId, createdAt])
+}
+
+model ChatOffer {
+  id        String   @id @default(cuid())
+  postId    String
+  post      ChatPost @relation(fields: [postId], references: [id])
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  note      String   @default("")
+  createdAt DateTime @default(now())
+
+  @@unique([postId, userId])
+}
+
+/// Điểm trả hay dùng của PHỤ HUYNH (Nhà, Nhà bà ngoại…) — chỉ để điền nhanh, gắn với tài khoản phụ huynh, không gắn hồ sơ trẻ.
+model SavedPlace {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  label     String
+  address   String
+  ward      String
+  lat       Float?
+  lng       Float?
+  createdAt DateTime @default(now())
+
+  @@unique([userId, label])
+}
