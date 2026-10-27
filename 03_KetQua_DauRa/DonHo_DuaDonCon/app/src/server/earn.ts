@@ -1,12 +1,14 @@
 // Đón hộ có phí: phụ huynh CÙNG TRƯỜNG đăng ký làm người đón có phí, giáo viên lớp con họ duyệt một lần.
 // Tiền: người nhờ chuyển khoản VietQR THẲNG cho người đón sau khi bé về an toàn — app không giữ tiền, chỉ ghi sổ.
 // Nền tảng trích % thu nhập người đón; người đón tự nộp định kỳ, nợ quá hạn thì tạm không nhận việc có phí mới.
-import { commissionOf, OWED_DAYS, OWED_LIMIT, parsePay } from "@/domain/money";
+import { jobRate, rateOf } from "@/domain/membership";
+import { commissionOf, parsePay } from "@/domain/money";
 import { parseDataUrl } from "@/domain/photo";
 import { addDays, showWindow, vnDateTime, vnToday } from "@/domain/time";
 import { bankName, BANKS, transferNote, vietQr } from "@/domain/vietqr";
 import { isGuardian } from "./access";
 import { AppError, db, platformAccount, platformRate } from "./db";
+import { tierOf, tiersOf } from "./membership";
 import { guardiansOf, notify } from "./notify";
 
 // ─────────────────────────── Đăng ký & duyệt ───────────────────────────
@@ -92,8 +94,10 @@ export async function owedOf(userId: string, now = new Date()) {
   });
   const amount = rows.reduce((s, r) => s + (r.commission ?? 0), 0);
   const oldest = rows.reduce<Date | null>((m, r) => (!m || r.paidAt! < m ? r.paidAt! : m), null);
-  const overdue = amount >= OWED_LIMIT && !!oldest && now.getTime() - oldest.getTime() > OWED_DAYS * 86_400_000;
-  return { amount, ids: rows.map((r) => r.id), overdue };
+  // hạn mức nợ theo hạng thành viên
+  const tier = await tierOf(userId, now);
+  const overdue = amount >= tier.owedLimit && !!oldest && now.getTime() - oldest.getTime() > tier.owedDays * 86_400_000;
+  return { amount, ids: rows.map((r) => r.id), overdue, limit: tier.owedLimit, days: tier.owedDays };
 }
 
 /** Người này nhận được lời nhờ có phí của lớp/trường này không? Ném lỗi kèm lý do dễ hiểu. */
@@ -102,7 +106,8 @@ export async function requirePaidHelper(userId: string, classId: string, now = n
   const cls = await db.class.findUniqueOrThrow({ where: { id: classId } });
   if (!prof || prof.status !== "DA_DUYET") throw new AppError("Lời nhờ có thù lao: bạn cần đăng ký người đón có phí và được cô duyệt (mục Kiếm thêm).");
   if (prof.schoolId !== cls.schoolId) throw new AppError("Chỉ phụ huynh cùng trường mới nhận đón có phí.");
-  if ((await owedOf(userId, now)).overdue) throw new AppError(`Bạn còn nợ phí nền tảng quá ${OWED_DAYS} ngày. Nộp phí ở mục Kiếm thêm để nhận việc tiếp.`);
+  const owed = await owedOf(userId, now);
+  if (owed.overdue) throw new AppError(`Bạn còn nợ phí nền tảng quá ${owed.days} ngày. Nộp phí ở mục Kiếm thêm để nhận việc tiếp.`);
   return prof;
 }
 
@@ -119,11 +124,17 @@ export async function paidBoard(userId: string, now = new Date()) {
     include: { class: true, offers: { select: { userId: true } } },
     orderBy: [{ date: "asc" }, { createdAt: "asc" }],
   });
-  const rate = platformRate();
+  const base = platformRate();
+  const me = await tierOf(userId, now);
+  const authors = await tiersOf([...new Set(posts.map((p) => p.authorId))], now);
   return posts
     .filter((p) => !myKids.has(p.studentId!) && vnDateTime(p.date!, p.class.pickupEnd) > now)
-    .map((p) => ({
-      id: p.id, className: p.class.name, ward: p.dropWard, note: p.body, fee: p.fee!, net: p.fee! - commissionOf(p.fee!, rate),
+    .map((p) => ({ p, author: authors.get(p.authorId)! }))
+    // lời nhờ của thành viên Vàng trở lên đứng trước (giữ thứ tự ngày giờ trong mỗi nhóm)
+    .sort((a, b) => Number(b.author.featured) - Number(a.author.featured))
+    .map(({ p, author }) => ({
+      featured: author.featured, rate: jobRate(me, author, base),
+      id: p.id, className: p.class.name, ward: p.dropWard, note: p.body, fee: p.fee!, net: p.fee! - commissionOf(p.fee!, jobRate(me, author, base)),
       when: showWindow(vnDateTime(p.date!, p.class.pickupStart), vnDateTime(p.date!, p.class.pickupEnd)),
       offered: p.offers.some((o) => o.userId === userId), offers: p.offers.length,
     }));
@@ -161,10 +172,12 @@ export async function markPaid(userId: string, requestId: string, opts: { amount
   const paid = parsePay(opts.amount, r.fee!);
   const thanks = (opts.thanks ?? "").trim().slice(0, 200);
   if (typeof paid === "object") throw new AppError(paid.error);
+  const tiers = await tiersOf([r.delegateId, r.requesterId], now);
+  const rate = jobRate(tiers.get(r.delegateId)!, tiers.get(r.requesterId)!, platformRate());
   await db.$transaction(async (tx) => {
-    // phí nền tảng tính trên số thực chuyển (phụ huynh có thể cảm ơn thêm)
+    // phí nền tảng tính trên số thực chuyển (phụ huynh có thể cảm ơn thêm), theo hạng thành viên của hai bên
     const res = await tx.pickupRequest.updateMany({ where: { id: r.id, paidAt: null },
-      data: { paidAt: now, paidAmount: paid, commission: commissionOf(paid, platformRate()), ...(thanks && !r.thanks && { thanks }) } });
+      data: { paidAt: now, paidAmount: paid, commission: commissionOf(paid, rate), ...(thanks && !r.thanks && { thanks }) } });
     if (res.count !== 1) return;
     await tx.requestEvent.create({ data: { requestId: r.id, actorId: userId, actorRole: "PHU_HUYNH", action: "DA_TRA_THU_LAO", note: String(paid) } });
     await notify(tx, [{ userId: r.delegateId, phone: r.delegatePhone }], "PUSH",
@@ -213,7 +226,8 @@ export async function earnings(userId: string, now = new Date()) {
   const acct = platformAccount();
   const settleNote = `DONHO PHI ${userId.slice(-6)}`;
   return {
-    rate: platformRate(),
+    rate: rateOf(await tierOf(userId, now), platformRate()),
+    tier: await tierOf(userId, now),
     month: { jobs: inMonth.length, gross: inMonth.reduce((s, j) => s + got(j), 0), net: inMonth.reduce((s, j) => s + got(j) - (j.commission ?? 0), 0) },
     waitingPay: done.filter((j) => !j.paidAt).reduce((s, j) => s + j.fee!, 0),
     owed,

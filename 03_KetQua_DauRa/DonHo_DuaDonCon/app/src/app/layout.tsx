@@ -44,6 +44,7 @@ function navFor(me: NonNullable<Me>, unread: number): (NavItem & { spare?: boole
   if (me.isParent || me.isTeacher) items.push({ href: "/nhom", label: "Nhóm lớp", short: "Nhóm lớp", icon: "message" });
   if (me.isParent || me.isDelegate) items.push({ href: "/nguoi-don", label: "Giúp đón & tương trợ", short: "Giúp đón", icon: "heart" });
   if (me.isParent) items.push({ href: "/kiem-tien", label: "Kiếm thêm khi đón hộ", short: "Kiếm thêm", icon: "wallet", spare: true });
+  if (me.isParent) items.push({ href: "/thanh-vien", label: "Thành viên ưu đãi", short: "Thành viên", icon: "star", spare: true });
   if (me.isParent) items.push({ href: "/nguoi-tin-cay", label: "Người tin cậy", short: "Tin cậy", icon: "users", spare: true });
   items.push({ href: "/hop-tin", label: "Hộp tin", short: "Hộp tin", icon: "inbox", count: unread });
   return items;

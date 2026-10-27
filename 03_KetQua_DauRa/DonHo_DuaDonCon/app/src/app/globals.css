@@ -695,3 +695,15 @@ input[type="file"] { color: var(--muted); }
 .stat-row .k { font-size: var(--fs-sm); color: var(--muted); }
 .pay-pick { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--s-3); margin-bottom: var(--s-3); }
 .pay-pick .field { flex: 1 1 160px; margin-bottom: 0; }
+.member-now { display: flex; align-items: center; gap: var(--s-3); }
+.member-now .ic { width: 48px; height: 48px; flex: none; border-radius: 14px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); }
+.member-name { font-size: var(--fs-lg, 1.25rem); }
+.tier-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--s-3); margin-bottom: var(--s-4); }
+.tier-card { display: flex; flex-direction: column; margin-bottom: 0; min-width: 0; }
+.tier-card.now { border-color: var(--ok); }
+.tier-card.picked { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-soft); }
+.tier-card ul { padding-left: 1.1em; margin: 0 0 var(--s-3); }
+.tier-card .btn { margin-top: auto; }
+.tier-price { margin-bottom: var(--s-2); }
+.tier-role { display: flex; align-items: center; gap: 6px; font-size: var(--fs-sm); margin: var(--s-2) 0 var(--s-1); color: var(--text-2); }
+.pick-row { display: flex; flex-wrap: wrap; gap: var(--s-2); }

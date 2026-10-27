@@ -146,6 +146,24 @@ Sếp chọn: người nhận tiền là **phụ huynh cùng trường**; thanh 
 
 **[CẦN XÁC MINH] pháp lý:** (a) không giữ tiền nên nhiều khả năng không phải trung gian thanh toán, cần luật sư xác nhận; (b) thu nhập của người đón và phí nền tảng — nghĩa vụ thuế TNCN/hoá đơn; (c) đưa đón trẻ có thu tiền có cần đăng ký kinh doanh/điều kiện gì không; (d) mã ngân hàng (BIN NAPAS) trong `src/domain/vietqr.ts` và việc app ngân hàng thật quét được mã — **chưa thử bằng app ngân hàng thật**.
 
+### 3.9. Thành viên ưu đãi (bổ sung 27/10)
+
+Sếp chọn: áp cho **cả người nhờ đón và người nhận đón**; **người không đóng phí vẫn dùng đủ dịch vụ thông thường**; người đóng phí nhận gói ưu đãi theo hạng. Một tài khoản phụ huynh có một hạng, dùng cho cả hai vai.
+
+| Hạng | Giá/tháng **[GIẢ ĐỊNH]** | Phí nền tảng khi nhận đón | Người đón giúp mình chịu phí | Điểm trả hay dùng | Hạn mức nợ phí | Lời nhờ nổi bật trên bảng việc trường | Ưu tiên trong nhóm lớp |
+|---|---|---|---|---|---|---|---|
+| Thường | 0đ | 10% | 10% | 5 | 300.000đ · 30 ngày | — | — |
+| Bạc | 39.000đ | 7% | 7% | 10 | 500.000đ · 45 ngày | — | — |
+| Vàng | 69.000đ | 5% | 5% | 20 | 800.000đ · 60 ngày | Có | Trước người cùng hạng tương trợ |
+| Kim cương | 129.000đ | 3% | 3% | 30 | 1.200.000đ · 60 ngày | Có | Trước người cùng hạng tương trợ |
+
+- Đóng 12 tháng tính giá 10 tháng. Phí một lượt có phí = **mức thấp hơn** giữa hạng người đón và hạng người nhờ (người nhờ là thành viên thì người đón nhận nhiều hơn → lời nhờ dễ có người nhận). Không vượt mức gốc `PLATFORM_FEE_RATE`.
+- Mua: chọn hạng + 1/12 tháng → VietQR tới tài khoản nền tảng → "Tôi đã chuyển khoản" → **có hiệu lực ngay**, trạng thái "Chờ đối soát" (`CHO_DOI_SOAT`); đối soát không thấy tiền thì đổi sang `HUY` là mất hiệu lực. **Chưa có màn đối soát** cho nền tảng.
+- Gia hạn cùng hạng nối tiếp sau gói đang chạy; nâng hạng có hiệu lực ngay; mua hạng thấp hơn khi đang có hạng cao thì chờ gói cao hết hạn.
+- **Luôn miễn phí:** nhờ đón (tin cậy/ngoài danh sách), cô duyệt, QR/PIN, kiểm ảnh + CCCD, ảnh bàn giao, bản đồ, điểm trả, nhóm lớp, điểm tương trợ, đăng ký và nhận đón có phí.
+- **Không mua được:** bỏ qua bước an toàn nào; hạng người đón **không hiện** cho phụ huynh nhờ (tiền không phải lý do để tin một người đón); vượt hạng tương trợ trong nhóm lớp.
+- **[CẦN XÁC MINH]:** chính sách hoàn tiền, xuất hoá đơn cho phí thành viên, thuế; điều khoản dịch vụ.
+
 ## 4. Quy mô 34 tỉnh thành
 
 ### 4.1. Mô hình đơn vị hành chính

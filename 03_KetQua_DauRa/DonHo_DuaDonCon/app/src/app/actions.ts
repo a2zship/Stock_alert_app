@@ -12,6 +12,7 @@ import * as C from "@/server/chat";
 import * as G from "@/server/tracking";
 import * as P from "@/server/places";
 import * as E from "@/server/earn";
+import * as M from "@/server/membership";
 import { SESSION_COOKIE, sessionDays, signSession } from "@/lib/session";
 import { TransitionError } from "@/domain/state";
 
@@ -264,6 +265,14 @@ export async function settleCommissionAction(_: FormState): Promise<FormState> {
     await E.settleCommission(uid);
     revalidatePath("/kiem-tien");
     return { ok: "Đã ghi nhận bạn nộp phí nền tảng. Cảm ơn bạn!" };
+  });
+}
+
+export async function buyMembershipAction(_: FormState, fd: FormData): Promise<FormState> {
+  return run(async (uid) => {
+    await M.buyMembership(uid, s(fd, "tier"), s(fd, "months"));
+    revalidatePath("/thanh-vien");
+    return { ok: "Đã ghi nhận gói thành viên. Ưu đãi áp dụng ngay, nền tảng sẽ đối soát sao kê." };
   });
 }
 

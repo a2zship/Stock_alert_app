@@ -5,7 +5,7 @@ import { offerHelpAction, registerHelperAction, settleCommissionAction } from "@
 import { ActionForm, PhotoInput, SubmitButton } from "@/components/forms";
 import { Icon } from "@/components/Icon";
 import { Empty, Note, PageHead, StatusBadge } from "@/components/ui";
-import { FEE_MAX, FEE_MIN, OWED_DAYS, OWED_LIMIT, showVnd } from "@/domain/money";
+import { FEE_MAX, FEE_MIN, showVnd } from "@/domain/money";
 import type { Status } from "@/domain/state";
 import { BANKS, bankName } from "@/domain/vietqr";
 import { db } from "@/server/db";
@@ -42,9 +42,9 @@ export default async function EarnPage() {
               {board.length === 0 ? <Empty icon="hand">Chưa có lời nhờ có thù lao nào. Khi có, bạn sẽ nhận thông báo.</Empty> : board.map((b) => (
                 <div key={b.id} className="job">
                   <div>
-                    <strong>{b.className}</strong> · {b.when}
+                    <strong>{b.className}</strong> · {b.when}{b.featured && <span className="badge badge-info ml-5"><Icon name="star" size={12} />Nổi bật</span>}
                     <div className="meta">{b.ward ? `Trả bé ở ${b.ward}` : "Điểm trả: hỏi phụ huynh"}{b.note ? ` · “${b.note}”` : ""}</div>
-                    <div className="meta">Thù lao từ <span className="money">{showVnd(b.fee)}</span> · bạn nhận từ <span className="money">{showVnd(b.net)}</span>{b.offers ? ` · ${b.offers} người đã nhận` : ""}</div>
+                    <div className="meta">Thù lao từ <span className="money">{showVnd(b.fee)}</span> · bạn nhận từ <span className="money">{showVnd(b.net)}</span> (phí {pct(b.rate)}){b.offers ? ` · ${b.offers} người đã nhận` : ""}</div>
                   </div>
                   {b.offered ? <span className="badge badge-ok"><Icon name="check" size={16} />Đã nhận, chờ chọn</span> : (
                     <ActionForm action={offerHelpAction} className="inline">
@@ -121,7 +121,7 @@ export default async function EarnPage() {
           {approved && earn.owed.amount > 0 && (
             <div className="card">
               <h2>Nộp phí nền tảng</h2>
-              <p className="small muted">Phí {pct(earn.rate)} trên số tiền thực nhận mỗi lượt. Nợ từ {showVnd(OWED_LIMIT)} và quá {OWED_DAYS} ngày thì tạm không nhận việc có phí mới.</p>
+              <p className="small muted">Phí {pct(earn.rate)} trên số tiền thực nhận mỗi lượt. Hạng {earn.tier.name}: nợ từ {showVnd(earn.owed.limit)} và quá {earn.owed.days} ngày thì tạm không nhận việc có phí mới.</p>
               {earn.settleQr && settleSvg ? (
                 <div className="pay-box">
                   <div className="qr" role="img" aria-label={`Mã VietQR nộp ${showVnd(earn.owed.amount)} phí nền tảng`} dangerouslySetInnerHTML={{ __html: settleSvg }} />
@@ -149,6 +149,7 @@ export default async function EarnPage() {
               <li>Thông tin của bé chỉ dùng cho lượt đón; không chụp ảnh, không chia sẻ.</li>
               <li>Vi phạm hoặc bị phản ánh: giáo viên tạm dừng tài khoản.</li>
               <li>Lượt đón có phí không cộng điểm tương trợ.</li>
+              <li>Thành viên ưu đãi được giảm phí nền tảng; nhận đón cho người nhờ là thành viên thì cũng được tính mức phí thấp hơn của hai bên. <Link href="/thanh-vien">Xem các hạng</Link></li>
               <li>Thu nhập này có thể phải kê khai thuế thu nhập cá nhân theo quy định.</li>
             </ul>
           </div>

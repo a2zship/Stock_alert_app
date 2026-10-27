@@ -33,6 +33,7 @@ Lớp Lá 1 đón 16:30–17:30. Mã đón chỉ dùng được từ 30 phút tr
 - **Nhóm lớp** (`/nhom`): phụ huynh + giáo viên của lớp nhắn tin; phụ huynh đăng "Nhờ đón hộ", phụ huynh khác bấm "Tôi đón giúp được", người nhờ chọn một người → tạo yêu cầu đón hộ bình thường (vẫn đủ 3 bên + kiểm tại cổng). Không hiện số điện thoại; người trong danh sách không được đón bị chặn và giáo viên được báo.
 - **Điểm trả bé khai theo từng lần** (form nhờ đón + lời nhờ trong nhóm): tên gọi, số nhà/đường, phường/xã, ghim bản đồ tuỳ chọn; chọn nhanh "điểm hay dùng" (tối đa 5, gắn tài khoản phụ huynh). Người đón thấy số nhà **sau khi cô duyệt**, nhóm lớp chỉ thấy phường/xã. Lúc đưa bé về: bản đồ hiện ghim nhà + khoảng cách, nút "Đã đưa bé tới nơi" báo phụ huynh. Số nhà + toạ độ tự xoá khi yêu cầu đóng.
 - **Đón hộ có phí** (`/kiem-tien`, `/giao-vien/nguoi-don-co-phi`): phụ huynh cùng trường đăng ký (CCCD, ảnh, tài khoản đứng tên mình) và được cô lớp của con duyệt; lời nhờ trong nhóm có **thù lao tối thiểu** thì cả trường thấy (không lộ tên bé); bé về an toàn thì người nhờ tự chọn số tiền (≥ mức tối thiểu) + lời cảm ơn, quét **VietQR** chuyển thẳng cho người đón. Nền tảng trích 10% số thực nhận, người đón tự nộp định kỳ; nợ quá hạn thì tạm không nhận việc. Đặt `PLATFORM_*` trong `.env` (xem `.env.example`). Dữ liệu thử: `npx tsx scripts/demo-co-phi.ts`.
+- **Thành viên ưu đãi** (`/thanh-vien`): Thường miễn phí dùng đủ dịch vụ; Bạc/Vàng/Kim cương (39/69/129 nghìn/tháng, 12 tháng giá 10) giảm phí nền tảng 7/5/3% cho cả khi nhận đón lẫn khi nhờ (lượt có phí lấy mức thấp hơn của hai bên), lưu 10/20/30 điểm trả, nới hạn mức nợ, Vàng+ nổi bật trên bảng việc trường. Mua bằng VietQR tới tài khoản nền tảng, có hiệu lực ngay, chờ đối soát. Hạng không đụng tới bước an toàn và không hiện cho người nhờ.
 - **Điểm tương trợ** (`/nguoi-don`): +10 mỗi lần đón trọn vẹn, +5 nhận lời trong 10 phút, +2 khi được cảm ơn; 3 hạng, 4 huy hiệu, quyền lợi theo hạng. Điểm không đổi ra tiền, không ảnh hưởng việc duyệt.
 
 **Nền bản đồ:** bản mẫu dùng ảnh nền của OSM France (dữ liệu OpenStreetMap, không cần khoá). Khi chạy thật cho nhiều trường cần chọn nhà cung cấp bản đồ có hợp đồng (ví dụ Mapbox, MapTiler, hoặc tự dựng máy chủ ảnh bản đồ) — sửa hằng `TILES` trong `src/components/mapKit.ts`. **[CẦN XÁC MINH]** điều khoản sử dụng trước khi phát hành.
@@ -40,7 +41,7 @@ Lớp Lá 1 đón 16:30–17:30. Mã đón chỉ dùng được từ 30 phút tr
 ## Kiểm tra
 
 ```bash
-npm test          # 28 test đơn vị + 31 test chạy trên DB thật (donho_test)
+npm test          # 31 test đơn vị + 36 test chạy trên DB thật (donho_test)
 npm run typecheck && npm run lint
 npm run contrast  # đo tương phản mọi cặp token sáng/tối (đọc từ globals.css)
 ```

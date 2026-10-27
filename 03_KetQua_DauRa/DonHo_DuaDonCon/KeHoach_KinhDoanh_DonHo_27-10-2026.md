@@ -88,6 +88,11 @@
 
 **Thu thêm từ "Đón hộ có phí" (bổ sung 27/10, chưa tính vào mô hình tài chính):** phụ huynh cùng trường đã được cô duyệt nhận đón có thù lao; người nhờ đặt mức tối thiểu và tự chuyển khoản VietQR thẳng cho người đón kèm lời cảm ơn. Nền tảng trích **10% số thực nhận [GIẢ ĐỊNH]**, người đón tự nộp định kỳ. Ước lượng thô: 5% số trẻ có 2 lượt có phí/tháng × 50.000đ × 10% ≈ **500đ/trẻ/tháng** — nhỏ so với phí trường (15.000đ); giá trị chính là giữ chân phụ huynh và làm nhóm lớp sôi động hơn, không phải nguồn thu chính **[GIẢ ĐỊNH, cần số thí điểm]**.
 
+**Thu từ thành viên ưu đãi (bổ sung 27/10, chưa tính vào mô hình tài chính):** người không đóng phí vẫn dùng đủ dịch vụ; Bạc 39.000đ / Vàng 69.000đ / Kim cương 129.000đ mỗi tháng **[GIẢ ĐỊNH]**, 12 tháng giá 10 tháng. Ưu đãi chỉ về tiền và tiện lợi (giảm phí nền tảng còn 7/5/3%, lưu nhiều điểm trả, nới hạn mức nợ, lời nhờ nổi bật trên bảng việc trường), không đụng bước an toàn.
+- Với người nhận đón, mỗi hạng có lời khi thu nhập từ đón có phí mỗi tháng vượt: Bạc khoảng 1,3 triệu (39.000đ ÷ 3% phí tiết kiệm), Vàng khoảng 1,38 triệu (69.000đ ÷ 5%), Kim cương khoảng 1,84 triệu (129.000đ ÷ 7%). Bạc chỉ có lợi hơn Vàng khi thu nhập dưới 1,5 triệu (30.000đ chênh ÷ 2% phí), nên đa số người mua sẽ chọn thẳng Vàng. Gói trả phí hợp với người đón thường xuyên, không ép người đón thỉnh thoảng phải mua.
+- Ước lượng thô: 3% phụ huynh mua, giá bình quân 60.000đ → khoảng 1.800đ/trẻ/tháng, cộng thêm vào 15.000đ phí trường **[GIẢ ĐỊNH, cần số thí điểm]**. Mua gói làm giảm khoản trích 10% từ đón có phí, nên hai nguồn thu một phần ăn vào nhau.
+- Rủi ro: phụ huynh coi việc trả phí là "trường thu thêm tiền" → nói rõ phần miễn phí đủ dùng; cần chính sách hoàn tiền + hoá đơn **[CẦN XÁC MINH]**.
+
 **Các khoản thu phụ (chưa tính vào mô hình tài chính):**
 - Phí cài đặt và tập huấn: 1–3 triệu/trường.
 - Đối tác tài trợ quyền lợi trong khung điểm tương trợ, ví dụ bảo hiểm hay hiệu sách. Khoản này chỉ làm khi trường đồng ý và đúng quy định quảng cáo trong trường học **[CẦN XÁC MINH]**.

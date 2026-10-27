@@ -202,3 +202,27 @@ describe("đón có phí: VietQR + thù lao", async () => {
     expect(parsePay("70500", 50000)).toHaveProperty("error");
   });
 });
+
+describe("thành viên ưu đãi", async () => {
+  const { addMonths, jobRate, priceOf, rateOf, startOfNew, tierInfo } = await import("@/domain/membership");
+  it("giá: 12 tháng tính 10 tháng; phí không vượt mức gốc của nền tảng", () => {
+    expect(priceOf("VANG", 1)).toBe(69_000);
+    expect(priceOf("VANG", 12)).toBe(690_000);
+    expect(rateOf(tierInfo("VANG"), 0.1)).toBe(0.05);
+    expect(rateOf(tierInfo("BAC"), 0.04)).toBe(0.04);
+  });
+  it("phí một lượt có phí = mức thấp hơn của người đón và người nhờ", () => {
+    expect(jobRate(tierInfo("THUONG"), tierInfo("THUONG"), 0.1)).toBe(0.1);
+    expect(jobRate(tierInfo("THUONG"), tierInfo("KIM_CUONG"), 0.1)).toBe(0.03);
+    expect(jobRate(tierInfo("VANG"), tierInfo("BAC"), 0.1)).toBe(0.05);
+  });
+  it("gia hạn cùng hạng nối tiếp; nâng hạng bắt đầu ngay; hạ hạng chờ gói cao hết hạn", () => {
+    const now = new Date("2026-10-27T00:00:00Z");
+    const bac = { tier: "BAC", endsAt: addMonths(now, 1) };
+    expect(startOfNew([bac], "BAC", now)).toEqual(bac.endsAt);
+    expect(startOfNew([bac], "VANG", now)).toEqual(now);
+    const vang = { tier: "VANG", endsAt: addMonths(now, 12) };
+    expect(startOfNew([vang], "BAC", now)).toEqual(vang.endsAt);
+    expect(startOfNew([], "KIM_CUONG", now)).toEqual(now);
+  });
+});

@@ -79,6 +79,7 @@ model User {
   places      SavedPlace[]
   helper      HelperProfile?
   settlements Settlement[]
+  memberships Membership[]
 }
 
 model Guardian {
@@ -425,4 +426,32 @@ model Settlement {
   amount    Int
   createdAt DateTime        @default(now())
   requests  PickupRequest[]
+}
+
+enum MemberTier {
+  BAC
+  VANG
+  KIM_CUONG
+}
+
+enum MembershipStatus {
+  CHO_DOI_SOAT // phụ huynh báo đã chuyển khoản — có hiệu lực ngay, chờ nền tảng đối soát sao kê
+  DA_XAC_NHAN
+  HUY // đối soát không thấy tiền → huỷ, mất hiệu lực
+}
+
+/// Gói thành viên ưu đãi đã mua (Thường = không có gói). Hạng đang có = gói còn hạn cao nhất.
+model Membership {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id])
+  tier      MemberTier
+  months    Int
+  amount    Int
+  startsAt  DateTime
+  endsAt    DateTime
+  status    MembershipStatus @default(CHO_DOI_SOAT)
+  createdAt DateTime         @default(now())
+
+  @@index([userId, endsAt])
 }

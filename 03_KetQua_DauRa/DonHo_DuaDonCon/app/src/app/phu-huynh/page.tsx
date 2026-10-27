@@ -81,6 +81,11 @@ export default async function ParentHome() {
           <strong>Kiếm thêm</strong>
           <span className="small">Đón con giúp phụ huynh cùng trường, nhận thù lao</span>
         </Link>
+        <Link href="/thanh-vien" className="quick">
+          <span className="ic"><Icon name="star" /></span>
+          <strong>Thành viên ưu đãi</strong>
+          <span className="small">Giảm phí, lời nhờ nổi bật, lưu nhiều điểm trả</span>
+        </Link>
       </div>
 
       <h2 className="section-title"><Icon name="smile" />Con của tôi</h2>

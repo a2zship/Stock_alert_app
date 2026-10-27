@@ -6,7 +6,9 @@ import { commissionOf, parseFee } from "@/domain/money";
 import { computeReward, TIERS } from "@/domain/reward";
 import { addDays, showWindow, vnDateTime, vnToday } from "@/domain/time";
 import { requireGuardian } from "./access";
+import { jobRate } from "@/domain/membership";
 import { AppError, db, platformRate } from "./db";
+import { tiersOf } from "./membership";
 import { requirePaidHelper } from "./earn";
 import { notify } from "./notify";
 import { createRequest } from "./requests";
@@ -138,10 +140,11 @@ export async function chooseOffer(userId: string, offerId: string, now = new Dat
       : undefined;
     if (post.fee) {
       const prof = await requirePaidHelper(offer.userId, post.classId, now);
+      const tiers = await tiersOf([offer.userId, userId], now);
       const id = await createRequest(userId, {
         studentId: post.studentId!, date: post.date!, mode: "adhoc", name: offer.user.name, phone: offer.user.phone,
         relation: "Phụ huynh cùng trường (đón có phí)", reason: post.body, drop,
-        paid: { fee: post.fee, commission: commissionOf(post.fee, platformRate()), cccdLast4: prof.cccdLast4, photoId: prof.photoId },
+        paid: { fee: post.fee, commission: commissionOf(post.fee, jobRate(tiers.get(offer.userId)!, tiers.get(userId)!, platformRate())), cccdLast4: prof.cccdLast4, photoId: prof.photoId },
       }, now);
       await db.chatPost.update({ where: { id: post.id }, data: { requestId: id, ...CLEAR_DROP } });
       return id;
@@ -225,9 +228,13 @@ export async function chatFeed(userId: string, classId: string, now = new Date()
       offers: p.offers.map((o) => ({ id: o.id, userId: o.userId, name: o.user.name, who: who(o.userId), note: o.note, ...tiers.get(o.userId)! })),
     };
   });
+  // hạng tương trợ (giúp người) đứng trước; thành viên Vàng+ chỉ đứng trước người CÙNG hạng tương trợ
+  const members = await tiersOf([...new Set(view.map((p) => p.author.id))], now);
   const openAsks = view
     .filter((p) => p.ask && p.status === "MO" && !p.ask.expired)
-    .sort((a, b) => b.author.tierIdx - a.author.tierIdx || +a.createdAt - +b.createdAt);
+    .sort((a, b) => b.author.tierIdx - a.author.tierIdx
+      || Number(members.get(b.author.id)!.askBoost) - Number(members.get(a.author.id)!.askBoost)
+      || +a.createdAt - +b.createdAt);
   const myKids = guardians.filter((g) => g.userId === userId).map((g) => g.student);
   return { cls, isParent: m.parent, isTeacher: m.teacher, posts: view, openAsks, myKids, members: (await classMembers(classId)).length };
 }
