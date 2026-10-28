@@ -7,6 +7,7 @@ import { parseDataUrl, sniffImage } from "@/domain/photo";
 import { codeUsableAt, STATUSES, STATUS_LABEL, transition, TransitionError } from "@/domain/state";
 import { addDays, vnDateTime, vnToday } from "@/domain/time";
 import { readSession, signSession } from "@/lib/session";
+import { msgHelpers, msgParents, normSchoolName, nudgeDue, parseClass, schoolStage } from "@/domain/sales";
 import { seal, unseal } from "@/server/seal";
 
 describe("máy trạng thái", () => {
@@ -329,5 +330,42 @@ describe("giới thiệu & chia sẻ doanh thu", async () => {
     expect(refActive(null, at)).toBe(false);
     expect(canClaimRef(at, new Date("2026-01-21T00:00:00Z"))).toBe(true);
     expect(canClaimRef(at, new Date("2026-01-23T00:00:00Z"))).toBe(false);
+  });
+});
+
+describe("phễu tự bán", () => {
+  it("bước của trường xét lần lượt: chưa qua bước trước thì không tính bước sau", () => {
+    const c = { teachers: 0, parents: 0, helpers: 0, pickups: 0, revenue: 0 };
+    expect(schoolStage(c)).toBe("MOI_DANG_KY");
+    expect(schoolStage({ ...c, teachers: 1 })).toBe("CO_CO_GIAO");
+    expect(schoolStage({ ...c, teachers: 1, parents: 5 })).toBe("CO_PHU_HUYNH");
+    expect(schoolStage({ ...c, teachers: 1, parents: 5, helpers: 2 })).toBe("CO_NGUOI_DON");
+    expect(schoolStage({ ...c, teachers: 1, parents: 5, helpers: 2, pickups: 1, revenue: 900 })).toBe("CO_DOANH_THU");
+    // có lượt đón nhưng chưa đủ người đón: vẫn ở bước người đón
+    expect(schoolStage({ ...c, teachers: 1, parents: 9, helpers: 1, pickups: 4, revenue: 900 })).toBe("CO_PHU_HUYNH");
+  });
+
+  it("khớp tên trường phụ huynh gõ: bỏ dấu, chữ thường, bỏ chữ trường, MN/TH viết tắt", () => {
+    expect(normSchoolName("Trường Mầm non Hướng Dương")).toBe("mam non huong duong");
+    expect(normSchoolName("MN  Hướng Dương")).toBe("mam non huong duong");
+    expect(normSchoolName("TH Lê Lợi")).toBe(normSchoolName("Trường Tiểu học Lê Lợi"));
+    expect(normSchoolName("Mầm non Đông Hải")).not.toBe(normSchoolName("Mầm non Hải Đông"));
+  });
+
+  it("nhắc việc: tối đa 3 lần, cách nhau ≥ 7 ngày", () => {
+    const now = new Date("2026-11-20T00:00:00Z");
+    const ago = (d: number) => new Date(now.getTime() - d * 86_400_000);
+    expect(nudgeDue([], now)).toBe(true);
+    expect(nudgeDue([ago(6)], now)).toBe(false);
+    expect(nudgeDue([ago(7)], now)).toBe(true);
+    expect(nudgeDue([ago(30), ago(20), ago(10)], now)).toBe(false);
+  });
+
+  it("lớp: tên và giờ đón hợp lệ; tin mẫu có đường dẫn và tên lớp", () => {
+    expect(parseClass({ name: " Lá  1 ", pickupStart: "16:30", pickupEnd: "17:30" })).toEqual({ name: "Lá 1", pickupStart: "16:30", pickupEnd: "17:30" });
+    expect(parseClass({ name: "Lá 1", pickupStart: "16:30", pickupEnd: "16:30" })).toHaveProperty("error");
+    expect(parseClass({ name: "Lá 1", pickupStart: "25:00", pickupEnd: "26:00" })).toHaveProperty("error");
+    const p = { school: "Trường Mầm non Hoa Mai", cls: "Lá 1", url: "https://donho.vn/dang-ky?lop=abc" };
+    for (const m of [msgParents(p), msgHelpers(p)]) { expect(m).toContain(p.url); expect(m).toContain("Lá 1"); }
   });
 });

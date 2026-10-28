@@ -1,0 +1,6 @@
+Playfair Display — Copyright 2017 The Playfair Display Project Authors (https://github.com/clauseggers/Playfair-Display)
+
+This Font Software is licensed under the SIL Open Font License, Version 1.1.
+Full licence text: https://openfontlicense.org/open-font-license-official-text/
+
+Files in this folder are unmodified WOFF2 subsets (latin, vietnamese; weight 600) as served by Google Fonts.

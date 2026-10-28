@@ -249,7 +249,7 @@ export async function shareView(userId: string, now = new Date()) {
 export const isPlatformAdmin = (phone: string) =>
   (process.env.ADMIN_PHONES ?? "").split(",").map((p) => p.trim()).filter(Boolean).includes(phone);
 
-async function requireAdmin(userId: string) {
+export async function requireAdmin(userId: string) {
   const u = await db.user.findUniqueOrThrow({ where: { id: userId } });
   if (!isPlatformAdmin(u.phone)) throw new AppError("Chỉ quản trị nền tảng.");
 }
@@ -264,13 +264,13 @@ export async function payoutQueue(userId: string, now = new Date()) {
   });
   const voided = await voidedSources(db, rows.map((r) => r.sourceId));
   const groups = new Map<string, { key: string; kind: "TRUONG" | "GIAO_VIEN"; month: string; who: string; school: string; amount: number; ids: string[];
-    pay: { bin: string; account: string; name: string } | null }>();
+    pay: { bin: string; account: string; name: string } | null; verified: boolean }>();
   for (const r of rows) {
     if (voided.has(r.sourceId) || !isPayable(r.month, now)) continue;
     const kind = r.kind as "TRUONG" | "GIAO_VIEN";
     const key = `${kind}:${kind === "TRUONG" ? r.schoolId : r.userId}:${r.month}`;
     const g = groups.get(key) ?? {
-      key, kind, month: r.month, school: r.school?.name ?? "", amount: 0, ids: [],
+      key, kind, month: r.month, school: r.school?.name ?? "", amount: 0, ids: [], verified: r.school?.verified ?? true,
       who: kind === "TRUONG" ? r.school?.name ?? "" : r.user?.name ?? "",
       pay: kind === "TRUONG"
         ? r.school?.payAccount ? { bin: r.school.payBin!, account: r.school.payAccount, name: r.school.payName! } : null
@@ -291,6 +291,7 @@ export async function markPayout(userId: string, key: string, now = new Date()) 
   const g = (await payoutQueue(userId, now)).find((x) => x.key === key);
   if (!g) throw new AppError("Khoản này đã chuyển hoặc chưa đến hạn.");
   if (!g.pay) throw new AppError("Người nhận chưa khai tài khoản ngân hàng.");
+  if (!g.verified) throw new AppError("Trường chưa được xác minh. Gọi xác minh ở trang Phễu trường rồi mới chuyển.");
   const [, target] = key.split(":");
   await db.$transaction(async (tx) => {
     const p = await tx.payout.create({ data: {

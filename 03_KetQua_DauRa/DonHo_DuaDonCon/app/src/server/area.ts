@@ -35,7 +35,7 @@ export const schoolsOf = (wardId: number) =>
   });
 
 /** Kiểm khu vực với dữ liệu thật; phường/xã gõ tay thì tạo mới (chưa xác minh) hoặc dùng lại tên trùng. */
-async function resolveArea(tx: Tx, a: Area) {
+export async function resolveArea(tx: Tx, a: Area) {
   const province = await tx.province.findUnique({ where: { id: a.provinceId } });
   if (!province) throw new AppError("Tỉnh/thành không có trong danh sách.");
   let wardId = a.wardId;

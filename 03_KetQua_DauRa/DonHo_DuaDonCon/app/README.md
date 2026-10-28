@@ -42,7 +42,7 @@ Lớp Lá 1 đón 16:30–17:30. Mã đón chỉ dùng được từ 30 phút tr
 ## Kiểm tra
 
 ```bash
-npm test          # 38 test đơn vị + 52 test chạy trên DB thật (donho_test)
+npm test          # 42 test đơn vị + 59 test chạy trên DB thật (donho_test)
 npm run typecheck && npm run lint
 npm run contrast  # đo tương phản mọi cặp token sáng/tối (đọc từ globals.css)
 ```

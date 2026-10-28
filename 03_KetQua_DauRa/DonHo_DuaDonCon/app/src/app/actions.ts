@@ -17,6 +17,7 @@ import * as TH from "@/server/monthly";
 import * as A from "@/server/area";
 import * as K from "@/server/asks";
 import * as S from "@/server/share";
+import * as SL from "@/server/sales";
 import { SESSION_COOKIE, sessionDays, signSession } from "@/lib/session";
 import { TransitionError } from "@/domain/state";
 
@@ -133,6 +134,83 @@ export async function reviewClaimAction(_: FormState, fd: FormData): Promise<For
     await A.reviewClaim(uid, s(fd, "id"), { approve, studentId: s(fd, "studentId"), calledParent: fd.get("calledParent") === "on", note: s(fd, "note") });
     revalidatePath("/giao-vien/phu-huynh-moi");
     return { ok: approve ? "Đã xác nhận phụ huynh." : "Đã từ chối và báo phụ huynh." };
+  });
+}
+
+// ── Nhà trường tự mở trường trên app ──
+
+const SCHOOL_KEYS = ["name", "phone", "provinceId", "wardId", "wardName", "schoolName", "address"] as const;
+const schoolInput = (fd: FormData) => Object.fromEntries(SCHOOL_KEYS.map((k) => [k, s(fd, k)])) as SL.OpenSchoolInput;
+
+export async function startOpenSchoolAction(_: FormState, fd: FormData): Promise<FormState> {
+  try {
+    const { phone } = await SL.startOpenSchool(schoolInput(fd));
+    return { step: "code", phone, ok: `Đã gửi mã 6 số tới ${phone}.` };
+  } catch (e) {
+    if (e instanceof AppError) return { error: e.message, phone: s(fd, "phone") };
+    console.error(e);
+    return { error: "Không gửi được mã. Thử lại sau." };
+  }
+}
+
+export async function finishOpenSchoolAction(_: FormState, fd: FormData): Promise<FormState> {
+  let userId: string;
+  try {
+    ({ userId } = await SL.finishOpenSchool({ ...schoolInput(fd), code: s(fd, "code") }));
+  } catch (e) {
+    if (e instanceof AppError) return { error: e.message, step: "code", phone: s(fd, "phone") };
+    console.error(e);
+    return { error: "Không mở được trường. Thử lại sau.", step: "code", phone: s(fd, "phone") };
+  }
+  await startSession(userId);
+  redirect("/truong");
+}
+
+export async function openSchoolAction(_: FormState, fd: FormData): Promise<FormState> {
+  const res = await run(async (uid) => { await SL.openSchool(uid, schoolInput(fd)); });
+  if (res?.error) return res;
+  revalidatePath("/", "layout");
+  redirect("/truong");
+}
+
+export async function addClassAction(_: FormState, fd: FormData): Promise<FormState> {
+  return run(async (uid) => {
+    await SL.addClass(uid, s(fd, "schoolId"), { name: s(fd, "name"), pickupStart: s(fd, "pickupStart"), pickupEnd: s(fd, "pickupEnd") });
+    revalidatePath("/truong");
+    return { ok: "Đã thêm lớp. Thêm cô phụ trách để lớp bắt đầu dùng." };
+  });
+}
+
+export async function addTeacherAction(_: FormState, fd: FormData): Promise<FormState> {
+  return run(async (uid) => {
+    await SL.addTeacher(uid, s(fd, "classId"), { name: s(fd, "name"), phone: s(fd, "phone") });
+    revalidatePath("/truong");
+    return { ok: "Đã thêm cô và gửi tin mời đăng nhập." };
+  });
+}
+
+export async function removeTeacherAction(_: FormState, fd: FormData): Promise<FormState> {
+  return run(async (uid) => {
+    await SL.removeTeacher(uid, s(fd, "classId"), s(fd, "teacherId"));
+    revalidatePath("/truong");
+    return { ok: "Đã bỏ cô khỏi lớp." };
+  });
+}
+
+export async function verifySchoolAction(_: FormState, fd: FormData): Promise<FormState> {
+  return run(async (uid) => {
+    await SL.verifySchool(uid, s(fd, "schoolId"));
+    revalidatePath("/quan-tri/truong");
+    return { ok: "Đã xác minh trường và báo ban giám hiệu." };
+  });
+}
+
+export async function runNudgesAction(_: FormState): Promise<FormState> {
+  return run(async (uid) => {
+    await S.requireAdmin(uid);
+    const { sent } = await SL.runNudges();
+    revalidatePath("/quan-tri/truong");
+    return { ok: sent ? `Đã gửi ${sent} lời nhắc.` : "Không có lời nhắc nào đến hạn." };
   });
 }
 

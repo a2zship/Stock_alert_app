@@ -7,7 +7,7 @@ import { CLAIM_RELATIONS } from "@/domain/area";
 type Opt = { id: number; name: string };
 type SchoolOpt = { id: string; name: string; classes: { id: string; name: string }[] };
 /** wardName = phường/xã gõ tay chưa xác minh (không có trong danh sách chọn) → mở sẵn ô gõ tên. */
-export type AreaDefaults = { provinceId?: number | null; wardId?: number | null; wardName?: string | null; schoolId?: string | null; schoolName?: string | null };
+export type AreaDefaults = { provinceId?: number | null; wardId?: number | null; wardName?: string | null; schoolId?: string | null; schoolName?: string | null; classId?: string | null };
 
 const OTHER = "khac";
 
@@ -20,15 +20,16 @@ async function load<T>(q: string): Promise<T[]> {
   }
 }
 
-export function AreaPicker({ provinces, defaults = {}, withChild = false }: {
-  provinces: { id: number; name: string; formedFrom: string }[]; defaults?: AreaDefaults; withChild?: boolean;
+/** withSchool=false: chỉ chọn tỉnh + phường/xã (nhà trường mở trường mới tự ghi tên trường ở ô riêng). */
+export function AreaPicker({ provinces, defaults = {}, withChild = false, withSchool = true }: {
+  provinces: { id: number; name: string; formedFrom: string }[]; defaults?: AreaDefaults; withChild?: boolean; withSchool?: boolean;
 }) {
   const [province, setProvince] = useState(defaults.provinceId ? String(defaults.provinceId) : "");
   const [ward, setWard] = useState(defaults.wardName ? OTHER : defaults.wardId ? String(defaults.wardId) : "");
   const [school, setSchool] = useState(defaults.schoolId ?? (defaults.schoolName ? OTHER : ""));
   const [wards, setWards] = useState<Opt[] | null>(null);
   const [schools, setSchools] = useState<SchoolOpt[] | null>(null);
-  const [cls, setCls] = useState("");
+  const [cls, setCls] = useState(defaults.classId ?? "");
 
   useEffect(() => {
     setWards(null);
@@ -36,12 +37,12 @@ export function AreaPicker({ provinces, defaults = {}, withChild = false }: {
   }, [province]);
   useEffect(() => {
     setSchools(null);
-    if (ward && ward !== OTHER) load<SchoolOpt>(`phuong=${ward}`).then(setSchools);
-  }, [ward]);
+    if (withSchool && ward && ward !== OTHER) load<SchoolOpt>(`phuong=${ward}`).then(setSchools);
+  }, [ward, withSchool]);
 
   const typedWard = ward === OTHER;
   const chosen = schools?.find((s) => s.id === school);
-  const typedSchool = typedWard || school === OTHER || (schools !== null && schools.length === 0);
+  const typedSchool = withSchool && (typedWard || school === OTHER || (schools !== null && schools.length === 0));
 
   return (
     <>

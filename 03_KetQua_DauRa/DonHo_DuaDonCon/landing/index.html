@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="vi" class="is-loading">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#1e1b4b" /><!-- đổi theo màu --night-2 -->
+    <!-- tiêu đề + mô tả bản tiếng Việt cho máy tìm kiếm; main.ts tự đổi theo ngôn ngữ (ui.pageTitle/pageDesc) -->
+    <title>Đón Hộ · Nhờ người quen đón con, cô giáo xác nhận</title>
+    <meta name="description" content="Nhờ phụ huynh cùng lớp đón con khi kẹt giờ. Cô giáo xác nhận đúng người mới giao bé, bố mẹ nhận tin lúc đón và lúc về tới nhà." />
+    <!-- ảnh cảnh 1 tải song song với JavaScript -->
+    <link rel="preload" as="image" type="image/avif" href="img/intro/bg-m.avif" media="(max-width: 767px)" fetchpriority="high" />
+    <link rel="preload" as="image" type="image/avif" imagesrcset="img/intro/bg-1920.avif 1920w, img/intro/bg-2560.avif 2560w" imagesizes="130vw" media="(min-width: 768px)" fetchpriority="high" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- Be Vietnam Pro (tiêu đề + nội dung) tải không chặn hiển thị -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;700&display=swap" media="print" onload="this.media='all'" />
+    <!-- favicon + biểu tượng: đặt file vào public/brand/ rồi bỏ comment
+    <link rel="icon" type="image/png" href="brand/favicon.png" />
+    <link rel="apple-touch-icon" href="brand/symbol.png" /> -->
+    <style>
+      /* màn chờ hiện ngay, trước khi CSS/JS chính tải xong */
+      html, body { margin: 0; background: #15133d; }
+      .loader { position: fixed; inset: 0; z-index: 90; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 20px; background: #15133d; }
+      .is-loading .loader { display: flex; }
+      .loader-mark { display: block; width: 180px; height: auto; }
+      .loader-text { width: auto; font: 700 1.6rem 'Be Vietnam Pro', system-ui, sans-serif; color: #fbf8f2; letter-spacing: 0.02em; }
+      .loader-bar { width: 120px; height: 2px; background: rgba(251, 248, 242, 0.15); overflow: hidden; }
+      .loader-bar i { display: block; height: 100%; width: 40%; background: #fbbf24; animation: load 1.1s ease-in-out infinite; }
+      @keyframes load { from { transform: translateX(-100%); } to { transform: translateX(260%); } }
+      @media (prefers-reduced-motion: reduce) { .loader-bar i { animation: none; } }
+    </style>
+  </head>
+  <body>
+    <div class="loader" aria-hidden="true"><span class="loader-mark loader-text">Đón Hộ</span><!-- có logo: thay bằng <img class="loader-mark" src="brand/logo-on-dark.webp" alt="…" width="480" height="160" /> --><span class="loader-bar"><i></i></span></div>
+    <noscript><p style="color:#fbf8f2;padding:24px;font-family:sans-serif">Trang cần bật JavaScript để hiển thị. Bạn cũng có thể vào thẳng app Đón Hộ để đăng ký.</p><style>.loader{display:none!important}</style></noscript>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

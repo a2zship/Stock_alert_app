@@ -9,6 +9,8 @@ import { CLAIM_RELATIONS } from "@/domain/area";
 import { showDate } from "@/domain/time";
 import { myArea, provinces } from "@/server/area";
 import { currentUser } from "@/server/queries";
+import { myDemand } from "@/server/sales";
+import { CopyText } from "@/components/CopyText";
 
 const CLAIM_LABEL = {
   CHO_DUYET: { label: "Chờ cô xác nhận", tone: "warn" },
@@ -20,7 +22,7 @@ const CLAIM_LABEL = {
 export default async function AreaPage() {
   const me = await currentUser();
   if (!me) redirect("/dang-nhap");
-  const [{ me: u, nearby, sameProvince }, list] = await Promise.all([myArea(me.id), provinces()]);
+  const [{ me: u, nearby, sameProvince }, list, demand] = await Promise.all([myArea(me.id), provinces(), myDemand(me.id)]);
   const waiting = u.claims.filter((c) => c.status === "CHO_DUYET");
 
   return (
@@ -53,6 +55,14 @@ export default async function AreaPage() {
             ) : <Empty icon="mapPin">Chưa chọn khu vực.</Empty>}
             {!u.ward?.verified && u.ward && <p className="hint mt-10">Tên phường/xã bạn gõ tay sẽ được đối chiếu với danh mục chính thức.</p>}
           </div>
+
+          {demand && (
+            <div className="card">
+              <h2><Icon name="school" /> Mời trường của con dùng Đón Hộ</h2>
+              <p className="meta">{demand.count > 1 ? `Đã có ${demand.count} phụ huynh đề xuất ${demand.school}.` : `Bạn đã đề xuất ${demand.school}.`} Gửi tin này cho cô hoặc chủ trường qua Zalo — trường mở trong khoảng 3 phút, không mất phí. Khi trường mở, app báo bạn chọn lớp của con.</p>
+              <CopyText id="invite-school" label="Tin mời nhà trường" text={demand.msg} rows={6} />
+            </div>
+          )}
 
           <div className="card">
             <h2>Con của tôi</h2>

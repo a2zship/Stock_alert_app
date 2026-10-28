@@ -262,6 +262,54 @@ Nền tảng giữ lại 65–85% tuỳ có người giới thiệu hay không.
 
 **Chưa làm:** màn đối soát sao kê (huỷ gói không thấy tiền — hiện chỉ đổi trạng thái trong DB); trần phần chia mỗi cô; báo cáo chi tiết từng khoản cho trường.
 
+### 3.14. Nhóm góp chi phí ô tô (giai đoạn 2 — CHƯA LÀM, chờ luật sư)
+
+Sếp chọn 28/10: ô tô đón nhiều bé đi theo hình thức **nhóm phụ huynh góp chi phí xe**, người lái **không có lãi**. Không trả công bằng điểm thưởng hay sản phẩm quy đổi được (luật xét bản chất: vẫn là thù lao, và nền tảng sẽ thành bên thu tiền rồi trả công).
+
+**Nhóm xe:**
+- Một phụ huynh lái (đã được cô duyệt như người đón có phí, khai thêm biển số, ảnh xe, số ghế) + các bé cùng trường đi chung tuyến.
+- Số bé tối đa = số chỗ hợp lệ cho trẻ theo luật giao thông (trẻ nhỏ không ngồi ghế trước, có thiết bị an toàn) **[CẦN XÁC MINH điều khoản]** — xe 5 chỗ thực tế khoảng 3 bé, xe 7 chỗ khoảng 5 bé.
+- Mỗi bé vẫn có cô lớp của bé duyệt một lần, cổng vẫn kiểm mã/ảnh/CCCD người lái như mọi buổi.
+
+**Mức góp có trần (không lãi):**
+- Trần mỗi tháng = quãng đường tuyến (km/ngày) × đơn giá chi phí xe mỗi km **[GIẢ ĐỊNH — app đặt mức, người lái không tự đặt giá]** × số buổi ÷ số bé, làm tròn nghìn.
+- Phụ huynh chuyển thẳng cho người lái bằng VietQR như đón theo tháng; app chỉ ghi sổ.
+- Có thu phí dịch vụ của nền tảng hay không: **chờ luật sư** — thu phí có thể làm nhóm góp mất tính không vụ lợi.
+
+**Xác nhận từng bé xuống xe (chống bỏ quên trẻ):**
+- Mỗi điểm trả, người lớn nhận bé quét mã hoặc bấm "Đã nhận bé".
+- Chuyến **không đóng được** khi chưa đủ số bé đã được nhận; quá giờ dự kiến mà còn bé chưa xác nhận → báo ngay cho cô và phụ huynh của bé đó.
+- Tính năng này **miễn phí**, là lằn ranh an toàn.
+
+**[CẦN XÁC MINH trước khi làm]:** góp chi phí có thoát diện kinh doanh vận tải và quy định xe đưa đón học sinh (Luật TTATGT đường bộ 2024) không; trách nhiệm của người lái khi tai nạn; bảo hiểm.
+
+### 3.15. Hệ thống tự bán — trường tự mở, phễu, nhắc việc (bổ sung 28/10)
+
+Mục tiêu: không cần người đi bán từng trường. Nhà trường, cô giáo và phụ huynh tự kéo nhau vào app; quản trị chỉ gọi xác minh và theo dõi phễu.
+
+**Các trang:**
+- `/` (chưa đăng nhập): trang giới thiệu cho 3 đối tượng — phụ huynh bận, phụ huynh hay đi đón, nhà trường. Chỉ nói điều app làm được, không số liệu hay lời khen bịa.
+- `/mo-truong`: nhà trường tự mở trường (họ tên, SĐT + mã xác minh, tỉnh → phường/xã, tên trường, địa chỉ). Người mở thành ban giám hiệu. Không mở trùng tên (đã bỏ dấu, "MN" = mầm non) trong cùng phường/xã. Đường dẫn `?phuong=&ten=` để phụ huynh gửi trường có điền sẵn.
+- `/truong` (ban giám hiệu): bước của trường, việc tiếp theo, thêm lớp (tên + giờ đón), thêm/bỏ cô bằng số điện thoại (số chưa có tài khoản thì tạo sẵn, gửi tin mời đăng nhập).
+- `/truong/lop/[id]` (cô lớp + ban giám hiệu): bộ khởi động — đường dẫn đăng ký `/dang-ky?lop=` điền sẵn tỉnh/phường/trường/lớp, áp phích QR in dán cửa lớp, tin mẫu gửi nhóm Zalo phụ huynh, tin mời "người đón tiên phong". Trang cô có nút "Mời phụ huynh".
+- `/khu-vuc` (phụ huynh đã đề xuất trường chưa có): tin mời nhà trường để tự gửi.
+- `/quan-tri/truong` (quản trị nền tảng): số trường theo bước, danh sách chờ gọi xác minh, bảng tất cả trường, nhu cầu phụ huynh đề xuất (kèm tin mời), nhật ký nhắc việc.
+
+**Bước của trường** (xét lần lượt; lượt đón và doanh thu tính 30 ngày gần nhất): Mới mở → Có cô → Có ≥ 5 phụ huynh → Có ≥ 2 người đón có phí đã duyệt → Có lượt đón → Có doanh thu.
+
+**Phụ huynh đề xuất trường:** khi trường mở, phụ huynh cùng phường/xã đã đề xuất đúng tên được gắn trường và báo chọn lớp.
+
+**Nhắc việc tự động** (`POST /api/nhac-viec` với `Authorization: Bearer CRON_SECRET`, hoặc nút trên trang quản trị). Mỗi loại × đối tượng tối đa 3 lần, cách nhau ≥ 7 ngày:
+- trường mở ≥ 2 ngày chưa có cô → nhắc ban giám hiệu;
+- trường mở ≥ 3 ngày, lớp có cô nhưng ít phụ huynh / thiếu người đón → nhắc cô kèm bộ khởi động lớp;
+- ≥ 3 phụ huynh cùng đề xuất một trường chưa có → nhắc từng người gửi đường dẫn mời trường.
+
+**Chốt an toàn — trường tự mở là "chưa xác minh":** luồng miễn phí dùng ngay; **đón có phí** (đăng ký người đón có phí) và **chuyển chia sẻ doanh thu** chỉ mở khi quản trị gọi xác minh và bấm xác minh. Lý do: chặn trường giả mạo dùng tiền làm mồi.
+
+**Cố ý không làm:** đường dẫn lớp **không** gắn mã giới thiệu của cô (nếu gắn, cô nhận 20% tín dụng từ cả lớp — chồng thêm xung đột lợi ích lên phần 5%). Tin mẫu không hứa "miễn phí nền tảng 3 tháng" vì app chưa có cơ chế đó.
+
+**Chưa làm:** đặt lịch cron thật trên máy chủ; gửi tin qua Zalo ZNS thật (đang Hộp tin thử nghiệm); miễn phí nền tảng cho người đón tiên phong; báo cáo chuyển đổi theo nguồn (áp phích / Zalo / phụ huynh mời).
+
 ## 4. Quy mô 34 tỉnh thành
 
 ### 4.1. Mô hình đơn vị hành chính

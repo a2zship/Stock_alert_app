@@ -19,6 +19,8 @@ import { creditBalance, lockUser, recordSettlement, useCredit } from "./share";
 async function schoolOfParent(userId: string) {
   const g = await db.guardian.findFirst({ where: { userId }, include: { student: { include: { class: true } } }, orderBy: { student: { name: "asc" } } });
   if (!g) throw new AppError("Chỉ phụ huynh có con đang học ở trường mới đăng ký đón hộ có phí.");
+  const school = await db.school.findUniqueOrThrow({ where: { id: g.student.class.schoolId } });
+  if (!school.verified) throw new AppError(`${school.name} chưa được Đón Hộ xác minh nên chưa mở đón có phí. Nhờ đón tương trợ vẫn dùng bình thường.`);
   return g.student.class.schoolId;
 }
 

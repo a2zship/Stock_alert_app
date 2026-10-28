@@ -47,7 +47,9 @@ function navFor(me: NonNullable<Me>, unread: number): (NavItem & { spare?: boole
   if (me.isParent) items.push({ href: "/kiem-tien", label: "Kiếm thêm khi đón hộ", short: "Kiếm thêm", icon: "wallet", spare: true });
   if (me.isParent) items.push({ href: "/thanh-vien", label: "Thành viên ưu đãi", short: "Thành viên", icon: "star", spare: true });
   if (me.isParent) items.push({ href: "/nguoi-tin-cay", label: "Người tin cậy", short: "Tin cậy", icon: "users", spare: true });
+  if (me.isSchoolAdmin) items.push({ href: "/truong", label: "Trường của tôi", short: "Trường", icon: "school", spare: me.isTeacher || me.isParent });
   if (me.isTeacher || me.isSchoolAdmin) items.push({ href: "/chia-se", label: "Chia sẻ doanh thu", short: "Chia sẻ", icon: "banknote", spare: me.isTeacher || me.isParent });
+  if (me.isPlatformAdmin) items.push({ href: "/quan-tri/truong", label: "Quản trị: phễu trường", short: "Phễu", icon: "filter", spare: true });
   if (me.isPlatformAdmin) items.push({ href: "/quan-tri/chia-se", label: "Quản trị: chuyển chia sẻ", short: "Quản trị", icon: "key", spare: true });
   items.push({ href: "/gioi-thieu", label: "Giới thiệu bạn bè", short: "Giới thiệu", icon: "gift", spare: true });
   // người vừa đăng ký chưa có vai trò: Khu vực là trang chính nên không bỏ khỏi thanh dưới

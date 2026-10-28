@@ -44,6 +44,10 @@ model School {
   ward       Ward            @relation(fields: [wardId], references: [id])
   name       String
   allowAdhoc Boolean         @default(true) // cho phép người đón ngoài danh sách tin cậy
+  // Trường tự mở trên app: chưa xác minh tới khi quản trị nền tảng gọi xác minh — chưa mở đón có phí, chưa chuyển chia sẻ
+  verified    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  createdById String?
   address    String          @default("")
   lat        Float? // toạ độ cổng trường, để vẽ bản đồ theo dõi
   lng        Float?
@@ -68,6 +72,7 @@ model Class {
   name        String
   pickupStart String // "HH:MM" giờ Việt Nam
   pickupEnd   String
+  createdAt   DateTime            @default(now())
   students    Student[]
   teachers    TeacherAssignment[]
   posts       ChatPost[]
@@ -698,4 +703,14 @@ model PayoutAccount {
   bankAccount String
   accountName String
   updatedAt   DateTime @updatedAt
+}
+
+// Nhắc việc tự động trong phễu mở trường (mỗi loại × đối tượng: tối đa 3 lần, cách nhau ≥ 7 ngày)
+model Nudge {
+  id     String   @id @default(cuid())
+  kind   String
+  target String
+  sentAt DateTime @default(now())
+
+  @@index([kind, target])
 }

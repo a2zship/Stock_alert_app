@@ -4,10 +4,10 @@
 // Gửi bằng onSubmit (không dùng prop action): React tự xoá form sau mỗi lần gửi qua action, làm mất các ô ở bước 2.
 import { startTransition, useActionState } from "react";
 import { finishSignupAction, startSignupAction, type FormState } from "@/app/actions";
-import { AreaPicker } from "@/components/AreaPicker";
+import { AreaPicker, type AreaDefaults } from "@/components/AreaPicker";
 import { Note } from "@/components/ui";
 
-export function SignupForm({ provinces, refCode }: { provinces: { id: number; name: string; formedFrom: string }[]; refCode?: string }) {
+export function SignupForm({ provinces, refCode, defaults }: { provinces: { id: number; name: string; formedFrom: string }[]; refCode?: string; defaults?: AreaDefaults }) {
   const [sent, send, sending] = useActionState<FormState, FormData>(startSignupAction, null);
   const [done, finish, finishing] = useActionState<FormState, FormData>(finishSignupAction, null);
   const busy = sending || finishing;
@@ -29,7 +29,7 @@ export function SignupForm({ provinces, refCode }: { provinces: { id: number; na
           <label htmlFor="phone">Số điện thoại</label>
           <input id="phone" name="phone" type="tel" inputMode="tel" autoComplete="tel" required />
         </div>
-        <AreaPicker provinces={provinces} withChild />
+        <AreaPicker provinces={provinces} defaults={defaults} withChild />
         <div className="field">
           <label htmlFor="refCode">Mã giới thiệu <span className="muted">(nếu có)</span></label>
           <input id="refCode" name="refCode" type="text" autoCapitalize="characters" autoComplete="off" maxLength={8} defaultValue={refCode} placeholder="Ví dụ: AB12CD" aria-describedby="refCode-hint" />

@@ -1,5 +1,7 @@
 # Kế hoạch kinh doanh — Đón Hộ
 
+> **Đã thay bằng bản 28/10** (`KeHoach_KinhDoanh_DonHo_28-10-2026.md`): đổi sang phụ huynh trả tiền, nhà trường là kênh phân phối. Bản này giữ lại làm phương án dự phòng "trường trả tiền".
+
 *Bản 27/10/2026 · tên miền đề xuất: donho.vn (+ beve.vn) · bản mẫu: `app/` (51/51 test)*
 
 > **Nhãn dùng trong tài liệu:** **[ĐÃ KIỂM]** = có nguồn hoặc đã chạy thử trong dự án · **[GIẢ ĐỊNH]** = con số đặt ra để tính, phải kiểm bằng thí điểm · **[CẦN XÁC MINH]** = cần chuyên gia hoặc đối tác xác nhận trước khi hành động.

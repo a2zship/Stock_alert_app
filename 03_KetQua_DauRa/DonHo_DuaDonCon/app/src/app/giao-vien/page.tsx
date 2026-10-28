@@ -27,6 +27,9 @@ export default async function TeacherHome() {
       <Hero title="Hôm nay của lớp" sub={`${me.teaches.map((t) => `${t.class.name} · ${t.class.school.name}`).join("; ")}. ${toReview.length + waiting.length ? `${toReview.length + waiting.length} yêu cầu chờ cô duyệt.` : "Chưa có yêu cầu nào chờ duyệt."}`} art="school">
         <Link href="/giao-vien/giao-tre" className="btn btn-lg"><Icon name="qr" />Giao trẻ tại cổng</Link>
         <Link href="/nhom" className="btn btn-lg btn-outline"><Icon name="message" />Nhóm lớp</Link>
+        {me.teaches.map((t) => (
+          <Link key={t.classId} href={`/truong/lop/${t.classId}`} className="btn btn-lg btn-outline"><Icon name="send" />Mời phụ huynh {me.teaches.length > 1 ? t.class.name : "vào lớp"}</Link>
+        ))}
       </Hero>
       {arrived.length > 0 && (
         <div className="card alert-banner">
